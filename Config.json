@@ -1,0 +1,8 @@
+ "Scheduler": {
+    "MongoDBLocation": "localhost",
+    "MongoPort": 27017,
+    "MongoDBName": "test",
+    "ConfigServerPort": 8099,
+    "ViewerHeight": 300,
+    "ViewerWidth": 400
+  },
