@@ -8,6 +8,10 @@
   },
   "author": "sam detweiler",
   "license": "ISC",
+  "dependencies": {
+    "mongodb": "2.2.11",
+    "electron-log": "^1.0.0"
+  },
   "devDependencies": {
     "eslint": "^5.15.1",
     "eslint-config-standard": "^12.0.0",
