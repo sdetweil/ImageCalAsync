@@ -11,9 +11,8 @@ var swaggerTools = require("swagger-tools");
 var jsyaml = require("js-yaml");
 var fsc = require("fs");
 var serverPort = 8099;
-//var curdir=__filename
-//'/home/pi/smart-mirror/plugins/ImageScheduler'
-var common = require(path.resolve(__dirname, "plugins/ImageScheduler/common"))
+
+var common = require(path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler", "common"))
 var ObjectId = require("mongodb").ObjectId;
 //var usedgram = 0;
 var MongoWatch = require("mongo-watch")
@@ -59,11 +58,11 @@ let waiting = false;
 // swaggerRouter configuration
 var options = {
 	swaggerUi: "/swagger.json",
-	controllers: path.resolve(__dirname, "plugins/ImageScheduler/config/controllers"),
+	controllers: path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler", "config", "controllers"),
 	useStubs: false //  process.env.NODE_ENV === 'development' ? true: false
 };
 // The Swagger document (require it, build it programmatically, fetch it from a URL, ...)
-var spec = fsc.readFileSync(path.resolve(__dirname, "plugins/ImageScheduler/config/api/swagger.yaml"), "utf8");
+var spec = fsc.readFileSync(path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler", "config","api")+ "/swagger.yaml", "utf8");
 var swaggerDoc = jsyaml.safeLoad(spec);
 
 // Initialize the Swagger middleware
@@ -145,6 +144,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 	var timeractive = false;
 	var refresh_interval = 120 // number of seconds (5 minutes = 5*60)
 	var scope;
+  var dbname = config.Scheduler.MongoDBName;
 	//var Providers = [];
 
 
@@ -163,13 +163,13 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			format: "pretty"
 		})
 
-		watcher.watch("test.EventViewers",
+		watcher.watch(dbname+ ".EventViewers",
 			function (event) {
 				// console.log("mongo EventViewer collection event=" + event.toString());
 				dbData.valid=false;
 				if (event.operation == "d") {
 					// console.log("shutdown any viewer that is running but deleted");
-					var running = viewerRunning(ImageService.viewerList, event.data._id);
+					let running = viewerRunning(ImageService.viewerList, event.data._id);
 					if (running)
 					// stop it
 					{ImageService.cancel(running.Viewer);}
@@ -178,7 +178,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 					checkforviewers()
 				}
 			});
-		watcher.watch("test.DataSources",
+		watcher.watch(dbname+ ".DataSources",
 			function (event) {
 				// console.log("mongo DataSources collection event=" + event.toString());
 				dbData.valid=false;
@@ -186,7 +186,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 					// loop thru the list of active viewers
 					for (let viewerinfo of ImageService.viewerList) {
 						// watch out for looping thru the list you are changing
-						var list = viewerinfo.Viewer.items
+						let list = viewerinfo.Viewer.items
 						// loop thru the data items currently used, loop thru the copy
 						for (let ImageItem of list) {
 							// console.log("shutdown any viewer where the datasource was deleted");
@@ -207,7 +207,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 					checkforviewers()
 				}
 			});
-		watcher.watch("test.Tags",
+		watcher.watch(dbname+ ".Tags",
 			function (event) {
 				dbData.valid=false;
 				// console.log("mongo Tags collection event=" + event.toString());
@@ -221,7 +221,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			}
 		)
 
-		watcher.watch("test.Images",
+		watcher.watch(dbname+ ".Images",
 			function (event) {
 				// console.log("mongo Images collection event=" + event.toString());
 				dbData.valid=false;
@@ -229,7 +229,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 					// loop thru the list of active viewers
 					for (let viewerinfo of ImageService.viewerList) {
 						// watch out for looping thru the list you are changing
-						var list = viewerinfo.Viewer.items
+						let list = viewerinfo.Viewer.items
 						// loop thru the data items currently used, loop thru the copy
 						for (let ImageItem of list) {
 							// if the source entry matches the one removed
@@ -252,7 +252,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 	});
 
 	function removeImageItemfromlist(list, item) {
-		for (var i = 0; i < list.length; i++) {
+		for (let i in  list) {
 			if (list[i].Source.id === item.Source.id &&
 					list[i].Image.id === item.Image.id) {
 				list.splice(i, 1);
@@ -268,7 +268,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 		}).each(
 			function (err, Viewer) {
 				if (Viewer != null) {
-					var running = viewerRunning(ImageService.viewerList, Viewer.Name);
+					let running = viewerRunning(ImageService.viewerList, Viewer.Name);
 					if (running) {
 						// stop it
 						ImageService.cancel(Viewer);
@@ -318,21 +318,17 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 		}
 		return results;
 	}
-	/*function setup_cloudrail(){
-			if(cr === null) {
-				cr = require('cloudrail-si');
-				cr.Settings.setKey("585c76189d59476effd9eace");
-			}
-		}*/
+
 	function worker(parm)
 	{
 		this.viewerinfo=parm;
 	}
+  
 	var filelist_callback = function (viewerinfo, callback) {
 		// console.log("in file list callback for viewer=" + viewerinfo.Viewer.Name);
 
 		// copy items list
-		var items=viewerinfo.Viewer.items.slice();
+		let items=viewerinfo.Viewer.items.slice();
 		// loop thru all the file items
 		items.forEach(
 			function (ImageItem) {
@@ -340,7 +336,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 				if(modules[ImageItem.Source.Type.Type]==null)
 				{
 					// load them
-					modules[ImageItem.Source.Type.Type]=require(path.resolve(__dirname, "plugins/ImageScheduler/image"+ImageItem.Source.Type.Type+".js"));
+					modules[ImageItem.Source.Type.Type]=require(path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler")+ "/image"+ImageItem.Source.Type.Type+".js");
 					resolvers[modules[ImageItem.Source.Type.Type].getPrefix()]=modules[ImageItem.Source.Type.Type];
 				}
 				// if the handler for this source type has been loaded
@@ -355,7 +351,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 	}
 
 	function Next(viewerinfo, callback) {
-		var imageUrl = null;
+		let imageUrl = null;
 
 		if (viewerinfo != null) {
 			// if the next pic would be beyond the end of list
@@ -382,7 +378,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 					delete viewerinfo.images["loaded_image_info"]
 				} else {
 					// make sure to increment the index for the next file later
-					var file = viewerinfo.images.found[viewerinfo.index];
+					let file = viewerinfo.images.found[viewerinfo.index];
 					//console.log("=====>waiting="+waiting)
 					if(waiting ==false){
 						//console.log("Next has file="+file);
@@ -390,7 +386,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 						{
 							if(!file.startsWith("http") && !file.startsWith("file"))
 							{
-								var f= file.substring(0,file.indexOf("//")+2)
+								let f= file.substring(0,file.indexOf("//")+2)
 								//console.log("Next resolving image name="+file+ "for viewer="+viewerinfo.Viewer.Name+" with prefix="+f);
 								if(resolvers[f]!=null)
 								{
@@ -443,7 +439,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 
 
 	function viewerRunning(viewerList, Name) {
-		var found = null;
+		let found = null;
 		for (let v of viewerList) {
 			if (typeof v.Viewer != "undefined" && (v.Viewer.Name == Name || v.Viewer._id == Name)) {
 				found = v;
@@ -524,11 +520,11 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			{
 				for(let tag of tags)
 				{
-					//console.log("image comparing image tag id="+itag +" with "+tag._id);
+					console.log("image comparing image tag id="+itag +" with "+tag._id);
 					if(tag._id==itag)
 					{
 						selectedimages.push(image)
-						//console.log("image we have matching tag id="+tag._id);
+						console.log("image we have matching tag id="+tag._id);
 						break byimage;
 					}
 				}
@@ -548,12 +544,12 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 					let needed = false
 					// is a viewer of this name running already
 					let running = viewerRunning(ImageService.viewerList, Viewer.Name);
-					for (var i = 0; i < filtered_events.length && needed == false; i++) {
+					for (let i = 0; i < filtered_events.length && needed == false; i++) {
 
 						// get the cal entry summary
-						var cal_entry_text = filtered_events[i].SUMMARY;
+						let cal_entry_text = filtered_events[i].SUMMARY;
 						// find any matching viewer tags in the summary
-						var tags = containsAny(cal_entry_text, tagentries);
+						let tags = containsAny(cal_entry_text, tagentries);
 						// if we found some tags
 						if (tags.length > 0) {
 							//// console.log(filtered_events[i]);
@@ -562,7 +558,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 							// find any image entries with the same tags as the viewer
 							let possibleimages=imagesfortags(tags)
 							// loop thru the image item definitions (usually only one)
-							var activeitems = []
+							let activeitems = []
 							// loop thru each image entry
 							for (let image of possibleimages) {
 								for (let source of data.ActiveDataSources) {
@@ -631,7 +627,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 
 		if (vdb != null) {
 			// get the highest preview time of all the active viewers
-			var doc=getMostDistantViewer()
+			let doc=getMostDistantViewer()
 			if (doc != null) {
 				//// console.log("error="+err);
 				if (typeof config.calendar.icals != "undefined") {
