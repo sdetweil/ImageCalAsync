@@ -1,4 +1,4 @@
-
+const path=require('path');
 var Prefix="gdrive://";
 var driver=null;
 var waiting=false;
@@ -9,9 +9,9 @@ var redirectUrl="https://developers.google.com/oauthplayground";
 
 
 
-var google = require("googleapis");
-const gal = require("google-auth-library");
-const Auth = new gal();
+var {google} = require("googleapis");
+//const {gal} = require("google-auth-library");
+const Auth =google.auth;
 var https = require("https");
 //const refresh_url = "www.googleapis.com/oauth2/v4/token";
 var querystring = require("querystring");
@@ -26,7 +26,7 @@ const SCOPES = "https://www.googleapis.com/auth/drive";
  * @param {getEventsCallback} callback The callback to call with the authorized
  *     client.
  */
-function getNewToken(oauth2Clientx, callback) {
+function getNewToken(oauth2Clientx,callback) {
 	var authUrl = oauth2Clientx.generateAuthUrl({
 		access_type: "offline",
 		scope: SCOPES
@@ -102,77 +102,83 @@ function getNewToken(oauth2Clientx, callback) {
  * raw google drive access method.
  */
 
-function listFiles(auth,parents,type,nextPageToken,Files, callback) {
+function listFiles(auth,parents,type,nextPageToken,Files) {
 	console.log("auth="+JSON.stringify(auth));
-	var extra="";
-	switch(type){
-	case 0:  // files
-		extra="mimeType contains 'image/'";
-		break;
-	case 1:  // folders
-		extra="mimeType = 'application/vnd.google-apps.folder'";
-		break;
-	case 2:  // both
-		extra="(mimeType contains 'image/' or mimeType = 'application/vnd.google-apps.folder' ) ";
-		break;
-	case 3:  // resolving names
-		extra="("+parents +") and (mimeType = 'application/vnd.google-apps.folder' ) ";
-		break;
-	}
-	var q="";
+  return new Promise((resolve,reject) =>{ 
+    var extra="";
+    switch(type){
+    case 0:  // files
+      extra="mimeType contains 'image/'";
+      break;
+    case 1:  // folders
+      extra="mimeType = 'application/vnd.google-apps.folder'";
+      break;
+    case 2:  // both
+      extra="(mimeType contains 'image/' or mimeType = 'application/vnd.google-apps.folder' ) ";
+      break;
+    case 3:  // resolving names
+      extra="("+parents +") and (mimeType = 'application/vnd.google-apps.folder' ) ";
+      break;
+    }
+    var q="";
 
-	if(type !==3 && parents!=null){
-		q+="parents in '"+parents+"' and ";
-	}
-	q+= extra;
-	//q="((name = '2009') or (name='Google Photos')) and (mimeType = 'application/vnd.google-apps.folder' )";
-	console.log("query="+q);
-	var px = {auth:auth,pageToken:nextPageToken, pagesize:100,fields:"nextPageToken, files(id, name,parents,mimeType)",q:q};
+    if(type !==3 && parents!=null){
+      q+="parents in '"+parents+"' and ";
+    }
+    q+= extra;
+    //q="((name = '2009') or (name='Google Photos')) and (mimeType = 'application/vnd.google-apps.folder' )";
+    console.log("query="+q);
+    var px = {auth:auth,pageToken:nextPageToken, pagesize:100,fields:"nextPageToken, files(id, name,parents,mimeType)",q:q};
 
-	drive.files.list(px, function(err, response) {
-		if (err) {
-			console.log("The API returned an error: " + err);
-			console.log("error="+JSON.stringify(err));
-			if(err.errors[0].message.includes("Invalid Credentials")){
-				auth.refresh_token="1/4WQ7AHQPnEDP2pgdZXePKf9YhdQHVg9hl5f9_CtlfXk";
-				getNewToken(auth,function(err,newauth){
-					if(err==null){
-						//console.log("this="+JSON.stringify(this));
-						listFiles(newauth,this.c.parents,this.c.type,this.c.nextPageToken,this.c.files, this.c.callback);
-					}
-					else{
-						this.c.callback(err,null,null)
-					}
-				}.bind({c: {parents:parents,type:type,nextPageToken: nextPageToken,files:Files,callback: callback}})
-				);
-			}
-			else {
-				callback(err,null,null)
-			}
-		}
-		else {
-			nextPageToken=response.nextPageToken;
-			console.log("there were "+response.files.length+" file entries returned");
-			if (response.files.length> 0)
-			{
-				Files=Files.concat(response.files);
-				if(nextPageToken!=null)
-				{
-					listFiles(auth,parents,type,nextPageToken,Files, callback);
-				}
-				else
-				{
-					console.log("no more files, return to caller="+auth.access_token);
-					callback(null, Files,auth.access_token);
-				}
-			}
-			else
-			{
-				console.log("no files, return to caller="+auth.access_token);
-				callback(null, Files,auth.access_token);
-			}
-		}
-	});
+    drive.files.list(px, (err, response) => {
+      if (err) {
+        console.log("The API returned an error: " + err);
+        console.log("error="+JSON.stringify(err));
+        if(err.errors[0].message.includes("Invalid Credentials")){
+          auth.refresh_token="1/4WQ7AHQPnEDP2pgdZXePKf9YhdQHVg9hl5f9_CtlfXk";
+          getNewToken(auth,(err,newauth)=>{
+            if(err==null){
+              //console.log("this="+JSON.stringify(this));
+              listFiles(newauth,parents,type,nextPageToken,files).then((err,file, newtoken)=>{
+                resolve({err,file, newtoken})
+              });
+            }
+            else{
+              reject(err)
+            }
+          }// .bind({c: {parents:parents,type:type,nextPageToken: nextPageToken,files:Files,callback: callback}})
+          );
+        }
+        else {
+          reject(err)
+        }
+      }
+      else {
+        nextPageToken=response.nextPageToken;
+        console.log("there were "+response.files.length+" file entries returned");
+        if (response.files.length> 0)
+        {
+          Files=Files.concat(response.files);
+          if(nextPageToken!=null)
+          {
+            listFiles(auth,parents,type,nextPageToken,Files).then(({e,f,Token})=> {
+              resolve({error:e,files:e,token:Token})
+            });
+          }
+          else
+          {
+            console.log("no more files, return to caller="+auth.access_token);
+            resolve({error:null,files:Files,token:null})
+          }
+        }
+        else
+        {
+          console.log("no files, return to caller="+auth.access_token);
+          resolve({error:null,files:Files,token:nextPageToken})
+        }
+      }
+    });
+  })
 }
 
 
@@ -185,179 +191,190 @@ let oauth2Client={};
 // used to list the files to display NOW
 module.exports.listImageFiles = function (ImageItem, viewerinfo, callback) {
 	console.log("in handler for google drive");
-	// if the file path has a wildcard, OR does NOT contain a . (just folders)
-	if (ImageItem.Image.PathFromSource.indexOf("*") >= 0 || !ImageItem.Image.PathFromSource.includes("."))
-	{
-		// construct the  full path to files
-		var dpath = ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/") + ImageItem.Image.PathFromSource;
-		// get the extension of the files (jpg, gif, ...)
-		var ext = dpath.substring(dpath.lastIndexOf("/"));
-		// get the just the target folder for dropbox or google drive
-		dpath = dpath.substring(0, dpath.lastIndexOf("/"));
-		if (drive == null)
-		{
-			drive =  google.drive("v3");
-		}
-		console.log("auth info="+JSON.stringify(ImageItem.Source.Authinfo));
-		oauth2Client = new Auth.OAuth2(ImageItem.Source.Authinfo.Userid, ImageItem.Source.Authinfo.Password, redirectUrl);
-		oauth2Client.access_token=oauth2Client.credentials.access_token=ImageItem.Source.Authinfo.OAuthid;
-		//console.log("oauth client="+JSON.stringify(oauth2Client));
-		oauth2Client.refresh_token="1/vVytCOrje0r9cweBWdWW0zQFMN2aTbDAzMhX4hCQcBSi6WVjVj-yMbUO-h0dlmmk";
+  return new Promise((resolve,reject) =>{
+    // if the file path has a wildcard, OR does NOT contain a . (just folders)
+    if (ImageItem.Image.PathFromSource.indexOf("*") >= 0 || !ImageItem.Image.PathFromSource.includes("."))
+    {
+      // construct the  full path to files
+      var dpath = ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/") + ImageItem.Image.PathFromSource;
+      // get the extension of the files (jpg, gif, ...)
+      var ext = dpath.substring(dpath.lastIndexOf("/"));
+      // get the just the target folder for dropbox or google drive
+      dpath = dpath.substring(0, dpath.lastIndexOf("/"));
+      if (drive == null)
+      {
+        try {
+        drive =  google.drive("v3");
+        } 
+        catch (error)
+        {
+          console.log("drive api setup error="+error)
+          reject(error);
+        }
+      }
+      console.log("auth info="+JSON.stringify(ImageItem.Source.Authinfo));
+      oauth2Client = new Auth.OAuth2(ImageItem.Source.Authinfo.Userid, ImageItem.Source.Authinfo.Password, redirectUrl);
+      oauth2Client.access_token=oauth2Client.credentials.access_token=ImageItem.Source.Authinfo.OAuthid;
+      //console.log("oauth client="+JSON.stringify(oauth2Client));
+      oauth2Client.refresh_token="1/vVytCOrje0r9cweBWdWW0zQFMN2aTbDAzMhX4hCQcBSi6WVjVj-yMbUO-h0dlmmk";
 
-		let filelist=[];
-		// do we want JUST folder?
-		var justFiles=3;
-		while(dpath.startsWith("//"))
-		{dpath=dpath.substring(1);}
-		var parts=dpath.split("/");
-		var folder_names="";
-		var path_entries=[];
-		for(let pathpart of parts)
-		{
-			if(pathpart!="" && !pathpart.includes("*"))
-			{
-				folder_names+=" or ( name = '"+pathpart+"')";
-				console.log("path_entries adding="+pathpart);
-				path_entries.push({name:pathpart,id:"",parent:""});
-			}
-		}
-		if(path_entries.length==0)
-		{folder_names="parents='root'";}
-		else
-		{folder_names=folder_names.substring(4);}
-		// get the list of files that matter
-		listFiles(oauth2Client,folder_names,3,null,filelist,
-			function(err,files,newtoken)
-			{
-				console.log("back from get folder ids err="+err);
-				if(err==null)
-				{
-					console.log("back from get path name ids, count="+files.length);
-					// assume the root
-					var parents="root";
-					if(path_entries.length>0)
-					{
-						// have the list of mapped folders to ids and parents
-						var pp= updatePathWithIDs(path_entries,files);
-						parents=pp[pp.length-1].name;
-						if(parents=="")
-						{parents="root";}
-					}
-					console.log("out dpath="+parents);
-					filelist=[];
-					var justFiles=2;  // just files
-					// get the list of files that matter
-					listFiles(oauth2Client,parents,justFiles,null,filelist,
-						function(err,files,newtoken){
-							if(err==null)
-							{
-								console.log("have "+files.length+" files available");
-								for (let file of files)
-								{
-									console.log("processing file="+file.name+" id="+file.id+" file info="+JSON.stringify(file));
-									if (!file["mimeType"].includes("folder"))
-									{
-										if (ext === "/*" || file.name.toLowerCase().endsWith(ext.toLowerCase().substring(ext.lastIndexOf("*")+1)))
-										{
-											console.log("file="+Prefix + file.id);
-											this.c.viewerinfo.images.found.push(Prefix + file.id)
-										}
-										// console.log("Drive " + file)
-									}
-								}
-								// if the access token has changed
-								console.log("end of file list new_token="+newtoken+" old token="+this.c.ImageItem.Source.Authinfo.OAuthid);
-								if(newtoken!==this.c.ImageItem.Source.Authinfo.OAuthid)
-								{
-									// save it in the running item for next cycle
-									oauth2Client.access_token=oauth2Client.credentials.access_token=this.c.ImageItem.Source.Authinfo.OAuthid=newtoken;
-									console.log("updating database for datasource id="+this.c.ImageItem.Source._id);
-									// and update the database with the new key for next time around
-									//var id=this.c.ImageItem.Source._id;
-									//delete this.c.ImageItem.Source._id;
-									common.getdb().collection("DataSources").update({_id: this.c.ImageItem.Source._id },this.c.ImageItem.Source,
-										function(err,result)
-										{
-											if(!err)
-											{
-												console.log("doc updated")
-											}
-											else
-											{
-												console.log("database updated failed err="+err);
-											}
-										}
-									);
-								}
-								// let the viewer know we have files
-								callback(null, this.c.viewerinfo);
-							}
-							else
-							{
-								console.log("error getting file list="+err);
-								callback(err,this.c.viewerinfo)
-							}
-						}.bind({c: {viewerinfo: viewerinfo, ImageItem: ImageItem}})
-					)
-				}
-				else
-				{
-					console.log("error getting folder ids="+err);
-					callback(err,this.c.viewerinfo)
-				}
-			}.bind({c: {viewerinfo: viewerinfo, ImageItem: ImageItem}})
-		);
-	}
-	else
-	{
-		console.log("only one file entry="+Prefix + ImageItem.Source.Root + ImageItem.Image.PathFromSource);
-		// no wildcard, so just one file entry
-		// construct the url from the source and image entries
-		//var url = ImageItem.Source.Root + ImageItem.Image.PathFromSource
-		// just one file, add it to the list
-		viewerinfo.images.found.push(Prefix + ImageItem.Source.Root + ImageItem.Image.PathFromSource);
-		callback(null, viewerinfo);
-	}
-
+      let filelist=[];
+      // do we want JUST folder?
+      var justFiles=3;
+      while(dpath.startsWith("//"))
+      {dpath=dpath.substring(1);}
+      var parts=dpath.split("/");
+      var folder_names="";
+      var path_entries=[];
+      for(let pathpart of parts)
+      {
+        if(pathpart!="" && !pathpart.includes("*"))
+        {
+          folder_names+=" or ( name = '"+pathpart+"')";
+          console.log("path_entries adding="+pathpart);
+          path_entries.push({name:pathpart,id:"",parent:""});
+        }
+      }
+      if(path_entries.length==0)
+      {folder_names="parents='root'";}
+      else
+      {folder_names=folder_names.substring(4);}
+      // get the list of files that matter
+      listFiles(oauth2Client,folder_names,3,null,filelist).then( 
+        ({err,files,newtoken}) =>
+        {
+          console.log("back from get folder ids err="+err);
+          if(err==null)
+          {
+            console.log("back from get path name ids, count="+files.length);
+            // assume the root
+            var parents="root";
+            if(path_entries.length>0)
+            {
+              // have the list of mapped folders to ids and parents
+              var pp= updatePathWithIDs(path_entries,files);
+              parents=pp[pp.length-1].name;
+              if(parents=="")
+              {parents="root";}
+            }
+            console.log("out dpath="+parents);
+            filelist=[];
+            var justFiles=2;  // just files
+            // get the list of files that matter
+            listFiles(oauth2Client,parents,justFiles,null,filelist).then(
+              ({err,files,newtoken}) => {
+                if(err==null)
+                {
+                  console.log("have "+files.length+" files available");
+                  for (let file of files)
+                  {
+                    console.log("processing file="+file.name+" id="+file.id+" file info="+JSON.stringify(file));
+                    if (!file["mimeType"].includes("folder"))
+                    {
+                      if (ext === "/*" || file.name.toLowerCase().endsWith(ext.toLowerCase().substring(ext.lastIndexOf("*")+1)))
+                      {
+                        console.log("file="+Prefix + file.id);
+                        viewerinfo.images.found.push(Prefix + file.id)
+                      }
+                      // console.log("Drive " + file)
+                    }
+                  }
+                  // if the access token has changed
+                  console.log("end of file list new_token="+newtoken+" old token="+this.c.ImageItem.Source.Authinfo.OAuthid);
+                  if(newtoken!==ImageItem.Source.Authinfo.OAuthid)
+                  {
+                    // save it in the running item for next cycle
+                    oauth2Client.access_token=oauth2Client.credentials.access_token=this.c.ImageItem.Source.Authinfo.OAuthid=newtoken;
+                    console.log("updating database for datasource id="+this.c.ImageItem.Source._id);
+                    // and update the database with the new key for next time around
+                    //var id=this.c.ImageItem.Source._id;
+                    //delete this.c.ImageItem.Source._id;
+                    common.getdb().collection("DataSources").update({_id: ImageItem.Source._id },ImageItem.Source,
+                      function(err,result)
+                      {
+                        if(!err)
+                        {
+                          console.log("doc updated")
+                        }
+                        else
+                        {
+                          console.log("database updated failed err="+err);
+                        }
+                      }
+                    );
+                  }
+                  // let the viewer know we have files
+                  console.log("Drive  sending files back count=" + viewerinfo.images.found.length);
+                  resolve(viewerinfo);
+                }
+                else
+                {
+                  console.log("error getting file list="+err);
+                  resolve(viewerinfo)
+                }
+              } //.bind({c: {viewerinfo: viewerinfo, ImageItem: ImageItem}})
+            )
+          }
+          else
+          {
+            console.log("error getting folder ids="+err);
+            resolve(viewerinfo)
+          }
+        } // .bind({c: {viewerinfo: viewerinfo, ImageItem: ImageItem}})
+      );
+    }
+    else
+    {
+      console.log("only one file entry="+Prefix + ImageItem.Source.Root + ImageItem.Image.PathFromSource);
+      // no wildcard, so just one file entry
+      // construct the url from the source and image entries
+      //var url = ImageItem.Source.Root + ImageItem.Image.PathFromSource
+      // just one file, add it to the list
+      viewerinfo.images.found.push(Prefix + ImageItem.Source.Root + ImageItem.Image.PathFromSource);
+      resolve(viewerinfo)
+    }
+  })
 }
-module.exports.resolve = function (file, callback) {
+module.exports.resolver = function (file) {
 	console.log("file resolver returning "+url_prefix+file.substring(Prefix.length)+url_suffix+" for "+file);
-	var id=file.substring(Prefix.length)
-	drive.permissions.list({auth:oauth2Client,fileId:id}, function(err,permissionData){
-		if(err==null){
-			var update=true;
-			for(var p1=0; p1<permissionData.permissions.length ;p1++){
-				var p=permissionData.permissions[p1];
-				if(p.type=="anyone" && p.role=="reader"){
-					//update=false;
-					break;
-				}
-			}
-			if(update){
-				var p2={kind: "drive#permission",type:"anyone",role:"reader"}
-				drive.permissions.create({fileId:this.id,auth:oauth2Client,resource:p2},function(err,newPermissions){
-					if(err==null){
-						console.log("new permissions="+JSON.stringify(newPermissions));
-						callback(null,url_prefix+this.id+url_suffix)
-					}
-					else{
-						console.log("create permission error="+err)
-						callback("create permission error="+err,null)
-					}
-				}.bind({id: this.id})
-				)
-			}
-			else{
-				console.log("google resolve returning "+url_prefix+this.id+url_suffix+" for file="+this.name)
-				callback(null, url_prefix+this.id+url_suffix)
-			}
-		}
-		else {
-			console.log("file permissions error="+err);
-			callback("file permissions error="+err,null)
-		}
-	}.bind({id: id})
-	)
+  return new Promise((resolve,reject) =>{
+    var id=file.substring(Prefix.length)
+    drive.permissions.list({auth:oauth2Client,fileId:id}, function(err,permissionData){
+      if(err==null){
+        var update=true;
+        for(var p1=0; p1<permissionData.permissions.length ;p1++){
+          var p=permissionData.permissions[p1];
+          if(p.type=="anyone" && p.role=="reader"){
+            //update=false;
+            break;
+          }
+        }
+        if(update){
+          var p2={kind: "drive#permission",type:"anyone",role:"reader"}
+          drive.permissions.create({fileId:this.id,auth:oauth2Client,resource:p2},function(err,newPermissions){
+            if(err==null){
+              console.log("new permissions="+JSON.stringify(newPermissions));
+              resolve(url_prefix+this.id+url_suffix)
+            }
+            else{
+              console.log("create permission error="+err)
+              reject("create permission error="+err)
+            }
+          }.bind({id: this.id})
+          )
+        }
+        else{
+          console.log("google resolve returning "+url_prefix+this.id+url_suffix+" for file="+this.name)
+          resolve(url_prefix+this.id+url_suffix)
+        }
+      }
+      else {
+        console.log("file permissions error="+err);
+        reject("file permissions error="+err)
+      }
+    }.bind({id: id})
+    )
+  })
 }
 module.exports.getPrefix = function () {
 	return Prefix;

@@ -288,15 +288,6 @@ var loading= false;
 			}
 		}
 
-		/*// get the html for showing the image
-		var getImageHTML = function (url) {
-			// make sure we support both web and local file resources
-			var filePrefix = url.toLowerCase().startsWith("http") ? "" : "file://";
-			// html
-			//return "<html><body><img src=\""+filePrefix+replaceAll(url," ","%20")+"\"></body></html>";
-			return filePrefix + url;
-		}*/
-
 		service.cancel = function (Viewer) {
 			// log.warn("in close")
 			var list = service.viewerList
@@ -321,71 +312,71 @@ var loading= false;
 		}
 		// timer event handler
 		// get the next image for each viewer
-		var updateImg = function () {
+		function updateImg() {
 			// check if busy and set if false. (test and set operation)
 			if ((busy == false) && ( busy = true )) {
 				// copy list of viewers
-				var s = service.viewerList.slice();
+				let viewers = service.viewerList.slice();
 				if (scope.focus != "sleep") {
 					// now
-					var now = Date.now();
-					var i=0;
+					let now = Date.now();
 					// loop thru the list of viewers
-					for (i = 0; i < s.length; i++) {
-						var qq=s[i]
+					for (let viewer of viewers) {
 						// if the viewer needs updating
-						if ( (qq.lastUpdate>0) && (now > (qq.lastUpdate + (qq.refreshIntervalSeconds * 1000))) && loading==false) {
+						if ( (viewer.lastUpdate>0) && (now > (viewer.lastUpdate + (viewer.refreshIntervalSeconds * 1000))) && loading==false) {
 							// need to update this window
 							// get the next image
 							// log.warn("updateimg calling viewer next")
 
-							qq.lastUpdate=-1;
-							var pic = qq.Viewer.next(qq, function (viewerinfo) {
-								//console.log("viewer last update reset");
+							viewer.lastUpdate=-1;
+							viewer.Viewer.next(viewer).then( (x) => {
+								console.log("viewer last update reset check");
 								// if viewer waiting for content
-								if(viewerinfo.lastUpdate==-1){
-									//console.log("viewer "+viewerinfo.Viewer.Name+" last update reset");
-									viewerinfo.lastUpdate=1;
+								if(x.viewer.lastUpdate==-1){
+									console.log("viewer "+x.viewer.Viewer.Name+" last update reset");
+									x.viewer.lastUpdate=1;
 								}
-							}
-							);
-							// and we have a picture, watch out for race
-							if (pic != null) {
-								// log.warn("have image to load="+pic);
-								// and load the index.html of the app.
-								// var html = getImageHTML(pic);
-								//// log.warn("image html="+html);
-								// load the next image in the new position
-								moveWindow(pic, qq);
-								// set the last updated time, will get corrected when image actualy loads
-								qq.lastUpdate = now;
-							}
+                console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name)
+                // and we have a picture, watch out for race
+                if (x.pic != null) {
+                  console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name+" now loading")
+                  // log.warn("have image to load="+pic);
+                  // load the next image in the new position
+                  moveWindow(x.pic, x.viewer);
+                  // set the last updated time, will get corrected when image actualy loads
+                  console.log("resetting last update  for viewer="+x.viewer.Viewer.Name)
+                  x.viewer.lastUpdate = Date.now();
+                } 
+							});              
 						} // end if
 					} // end for
+          busy=false;
 				} else {
 					// loop thru the list of viewers
-					for (i = 0; i < s.length; i++) {
-						if (s[i].window != null)
-						{s[i].window.hide();}
+					for (let viewer of viewers) {
+						if (viewer.window != null){
+							viewer.window.hide();
+						}
 					}
+				  busy = false;          
 				}
-				busy = false;
 			}	else {
 				// log.warn("update img was busy already");
+        busy=false;
 			}
 		}; // end function
 
 		// handle all the windows with LoadURL completed
 		function handleLoadComplete(){
 			// get the active loaded window list
-			var s = service.windowlist;
+			let s = service.windowlist;
 			// clear the current list
 			service.windowlist=[];
 			// loop thru the list, if any
 			while(s.length>0) {
 				// use the 1st entry in the array
 				// note splice returns an array, even if only 1 element
-				var c = s.splice(0,1)[0];
+				let c = s.splice(0,1)[0];
 				loaded(c);
 			}		// end of while loop
 			updateImg();
@@ -415,6 +406,7 @@ var loading= false;
 						found: []
 					},
 					loading:false,
+          loadingImages:false,
 					index: -1,
 					refreshIntervalSeconds: refreshdelay,
 					lastUpdate: 1
@@ -480,9 +472,6 @@ var loading= false;
 				}
 			}
 		}
-		/*function escapeRegExp(str) {
-			return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-		}*/
 
 		var registerRefreshInterval = function (callback, interval) {
 			if (typeof interval !== "undefined") {
@@ -495,10 +484,10 @@ var loading= false;
 		function rand() {
 			return random(0, 32767);
 		}
-    console.log("returning ImageService object");
+		console.log("returning ImageService object");
 		return service;
 	}
-  console.log("registering ImageService");
+	console.log("registering ImageService");
 	angular.module("SmartMirror")
 		.factory("ImageService", ImageService);
 

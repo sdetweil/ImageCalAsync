@@ -7,42 +7,44 @@ var actualPrefix="file://"
 	this.viewerinfo=parm;
 }*/
 
-module.exports.listImageFiles = function (ImageItem, viewerinfo, callback) {
-	// if the filename has a wildcard
-	if (ImageItem.Image.PathFromSource.indexOf("*") >= 0) {
-		// construct the url from the source and image entries
-		// do this separately, as we don't know how long it will take for the glob
-		// service to access the url. and we are in a loop changing this on the next iteration
-		var url1 = ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/")+ ImageItem.Image.PathFromSource
+module.exports.listImageFiles = function (ImageItem, viewerinfo) {
+	
+	return  new Promise((resolve,reject) =>{
+    // if the filename has a wildcard
+		if (ImageItem.Image.PathFromSource.indexOf("*") >= 0) {
+      // construct the url from the source and image entries
+      // do this separately, as we don't know how long it will take for the glob
+      // service to access the url. and we are in a loop changing this on the next iteration
+			let url1 = ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/")+ ImageItem.Image.PathFromSource
 
-		// use glob to get the list
-		// console.log("globbing");
-		glob(url1, {
-			nocase: true,
-			absolute: true
-		},
-		function (err, files) {
-			// put all the files on the viewers list
-			files.forEach(function (file) {
-				//console.log("adding image for viewer = "+this.b.Viewer.Name+"="+Prefix+file);
-				this.b.images.found.push(Prefix+file)
-			}.bind({b: this.x})
-			);
-			// let the viewer know we have files
-			callback(this.x);
-		}.bind({x: viewerinfo})
-		);
-	} else {
-		// construct the url from the source and image entries
-		//var url = ImageItem.Source.Root + ImageItem.Image.PathFromSource
-		// just one file, add it to the list
-		viewerinfo.images.found.push(Prefix+ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/")+ ImageItem.Image.PathFromSource);
-		callback(viewerinfo);
-	}
+      // use glob to get the list
+      // console.log("globbing");
+			glob(url1, { nocase: true, absolute: true},
+       (err, files) =>{
+        // put all the files on the viewers list
+          files.forEach((file) => {
+            //console.log("adding image for viewer = "+this.b.Viewer.Name+"="+Prefix+file);
+            viewerinfo.images.found.push(Prefix+file)
+          });
+        // let the viewer know we have files
+        //console.log(" File handler done with glob list, count="+viewerinfo.images.found.length)
+        resolve(viewerinfo) 
+      });
+		} else {
+      // construct the url from the source and image entries
+      //var url = ImageItem.Source.Root + ImageItem.Image.PathFromSource
+      // just one file, add it to the list
+			viewerinfo.images.found.push(Prefix+ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/")+ ImageItem.Image.PathFromSource);
+			resolve(viewerinfo);
+		}
+	})
+
 }
-module.exports.resolve = function ( file, callback) {
-	console.log("file resolver returning "+actualPrefix+file.substring(Prefix.length)+" for "+file);
-	callback(null, actualPrefix+file.substring(Prefix.length))
+module.exports.resolver = function ( file) {
+	return new Promise((resolve,reject) =>{  
+    //console.log("file resolver returning "+actualPrefix+file.substring(Prefix.length)+" for "+file);
+    resolve(actualPrefix+file.substring(Prefix.length))
+  })
 }
 module.exports.getPrefix = function () {
 	return Prefix;
@@ -53,11 +55,11 @@ module.exports.listFiles = function(Authinfo,path, FoldersOnly, callback){
 	options.silent=true;
 	options.nonull=false;
 	options.nocase=true;
-	console.log("in file listFiles, path="+path);
+	//console.log("in file listFiles, path="+path);
 	glob(path,options,
 		function(err, Files)
 		{
-			console.log("in file listFiles have results, count="+Files.length);
+			//console.log("in file listFiles have results, count="+Files.length);
 			var requested_filetype="";
 			if(err==null)
 			{

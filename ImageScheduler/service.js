@@ -4,7 +4,6 @@ var MongoClient = require("mongodb").MongoClient;
 //var e2c = require('electron-to-chromium');
 const path = require("path");
 
-
 var webserver = require("connect")();
 var http = require("http");
 var swaggerTools = require("swagger-tools");
@@ -12,11 +11,11 @@ var jsyaml = require("js-yaml");
 var fsc = require("fs");
 var serverPort = 8099;
 
-var common = require(path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler", "common"))
-var ObjectId = require("mongodb").ObjectId;
-//var usedgram = 0;
+var common = require(path.resolve( __dirname , "plugins", "ImageCal", "ImageScheduler", "common"))
+//var ObjectId = require("mongodb").ObjectId;
 var MongoWatch = require("mongo-watch")
-var useDBX=true;
+const OperationDelete="d";
+
 var cr = null;
 let dbData={};
 dbData.ActiveViewers=[]
@@ -26,24 +25,14 @@ dbData.Tags=[]
 dbData.valid=false;
 
 var resolvers={};
-var modules={"file":null,"DropBox":null,"GoodDrive":null,"OneDrive":null};
-var DropBoxPrefix = "";
+var modules={"file":null,"DropBox":null,"GoogleDrive":null,"OneDrive":null};
+
 var FilePrefix="foo://"
-if(useDBX === false) {
-	DropBoxPrefix = "crdb://"
-}
-else {
-	DropBoxPrefix = "dropbox://"
-}
-var useDrive = false;
-var DrivePrefix = "";
+var DropBoxPrefix = "dropbox://"
+var DrivePrefix="gdrive://"
+
 var inprogress=false;
-if(useDrive === false) {
-	DrivePrefix="crgd://"
-}
-else {
-	DrivePrefix="gdrive://"
-}
+
 //	var dateFormat = require('dateformat');
 var dgram = require("dgram");
 var glob = require("glob")
@@ -137,14 +126,13 @@ server.on("message",
 
 server.bind(serverPort + 1, HOST);
 
-//(function () {
 
 function ImageSchedulerService($http, $interval, CalendarService, ImageService) {
 	var service = {};
 	var timeractive = false;
-	var refresh_interval = 120 // number of seconds (5 minutes = 5*60)
+	var refresh_interval = 30; // number of seconds (5 minutes = 5*60)
 	var scope;
-  var dbname = config.Scheduler.MongoDBName;
+	var dbname = config.Scheduler.MongoDBName;
 	//var Providers = [];
 
 
@@ -167,7 +155,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			function (event) {
 				// console.log("mongo EventViewer collection event=" + event.toString());
 				dbData.valid=false;
-				if (event.operation == "d") {
+				if (event.operation == OperationDelete) {
 					// console.log("shutdown any viewer that is running but deleted");
 					let running = viewerRunning(ImageService.viewerList, event.data._id);
 					if (running)
@@ -182,7 +170,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			function (event) {
 				// console.log("mongo DataSources collection event=" + event.toString());
 				dbData.valid=false;
-				if (event.operation == "d") {
+				if (event.operation == OperationDelete) {
 					// loop thru the list of active viewers
 					for (let viewerinfo of ImageService.viewerList) {
 						// watch out for looping thru the list you are changing
@@ -211,7 +199,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			function (event) {
 				dbData.valid=false;
 				// console.log("mongo Tags collection event=" + event.toString());
-				if (event.operation == "d") {
+				if (event.operation == OperationDelete) {
 					// tag deleted
 					// need to get all images that use that tag id,
 					// loop thru all active viewers, and their imageitem list to see if there is a data source
@@ -225,7 +213,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			function (event) {
 				// console.log("mongo Images collection event=" + event.toString());
 				dbData.valid=false;
-				if (event.operation == "d") {
+				if (event.operation == OperationDelete) {
 					// loop thru the list of active viewers
 					for (let viewerinfo of ImageService.viewerList) {
 						// watch out for looping thru the list you are changing
@@ -324,119 +312,147 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 		this.viewerinfo=parm;
 	}
   
-	var filelist_callback = function (viewerinfo, callback) {
-		// console.log("in file list callback for viewer=" + viewerinfo.Viewer.Name);
-
-		// copy items list
-		let items=viewerinfo.Viewer.items.slice();
-		// loop thru all the file items
-		items.forEach(
-			function (ImageItem) {
-				// if the handlers haven't been loaded yet
-				if(modules[ImageItem.Source.Type.Type]==null)
-				{
-					// load them
-					modules[ImageItem.Source.Type.Type]=require(path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler")+ "/image"+ImageItem.Source.Type.Type+".js");
-					resolvers[modules[ImageItem.Source.Type.Type].getPrefix()]=modules[ImageItem.Source.Type.Type];
-				}
-				// if the handler for this source type has been loaded
-				if(modules[ImageItem.Source.Type.Type]!=null)
-				{
-					// call it to get the file list
-					console.log("calling handler for type="+ImageItem.Source.Type.Type);
-					modules[ImageItem.Source.Type.Type].listImageFiles(ImageItem,viewerinfo, callback)
-				}
-			});
-		// console.log("done in file list callback for viewer=" + viewerinfo.Viewer.Name);
+	function updatefilelist(viewerinfo) {
+    
+    return new Promise((resolve,reject) =>{
+      //console.log("in file list callback for viewer=" + viewerinfo.Viewer.Name);
+      // copy items list
+      let items=viewerinfo.Viewer.items.slice();
+      // loop thru all the file items
+      viewerinfo.promises=[]
+      items.forEach( (ImageItem) => {
+        viewerinfo.promises.push(new Promise((resolve,reject) =>{
+          // if the handlers haven't been loaded yet
+          if(modules[ImageItem.Source.Type.Type]==null){
+            // load them
+            let mname=path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler")+ "/image"+ImageItem.Source.Type.Type+".js";
+            modules[ImageItem.Source.Type.Type]=require(mname);
+            resolvers[modules[ImageItem.Source.Type.Type].getPrefix()]=modules[ImageItem.Source.Type.Type];
+          }
+            // if the handler for this source type has been loaded
+          if(modules[ImageItem.Source.Type.Type]!=null){
+              // call it to get the file list
+            //console.log("calling handler for type="+ImageItem.Source.Type.Type);
+            try{
+              modules[ImageItem.Source.Type.Type].listImageFiles(ImageItem,viewerinfo).then(
+                  (v) =>{ 
+                    c//onsole.log("resolving image list update for viewer="+v.Viewer.Name+ " Source="+ImageItem.Source.Name)
+                    resolve()
+                  },         
+                (error)=>{
+                  //console.log(" list file items promise error="+error);
+                  reject(error);
+                }
+              )
+            }
+            catch(error){
+              //console.log(" listimagefile error ="+error)
+              reject(error);
+            }
+          }
+        }))
+      });        
+      Promises.all(viewerinfo.promises).then(()=>{
+         resolve(viewerinfo);
+      })
+      //console.log("done in updatefilelist for viewer=" + viewerinfo.Viewer.Name);
+    });
 	}
 
-	function Next(viewerinfo, callback) {
-		let imageUrl = null;
+	function Next(viewerinfo) {
+    return new Promise((resolve,reject) =>{    
+      //console.log("in next for viewer="+viewerinfo.Viewer.Name);
+      if (viewerinfo != null) {
+        // if the next pic would be beyond the end of list
+        if (viewerinfo.loadingImages==false && viewerinfo.index == -1 || (viewerinfo.images.found.length > 0 && viewerinfo.index >= viewerinfo.images.found.length)) {
+          // reset the index
+          viewerinfo.index = 0;
+          // clear the list of images
+          //console.log("clearing image list for viewer="+viewerinfo.Viewer.Name);
+          viewerinfo.images.found = []
+          // watch out for updated list of images
+          // console.log("getting images for viewer="+viewerinfo.Viewer.Name);
+          viewerinfo.loadingImages = true;    
+          updatefilelist(viewerinfo).then((v)=>{
+            // reset the index
+            //console.log("filelist finished in then for viewer="+v.Viewer.Name)           
+            v.loadingImages = false;
+            // no image yet, need to cycle thru again to fixup any filenames
+            resolve({viewer:v, pic:null})
+          });
+        }
+        // send back the next image
+        //console.log("image count="+viewerinfo.images.found.length+" and index="+viewerinfo.index +" for viewer="+viewerinfo.Viewer.Name)
+        //console.log("loading="+viewerinfo.loading+" for viewer="+viewerinfo.Viewer.Name)
 
-		if (viewerinfo != null) {
-			// if the next pic would be beyond the end of list
-			if (viewerinfo.index == -1 || (viewerinfo.images.found.length > 0 && viewerinfo.index >= viewerinfo.images.found.length)) {
-				// reset the index
-				viewerinfo.index = 0;
-				// clear the list of images
-				// console.log("clearing image list for viewer="+viewerinfo.Viewer.Name);
-				viewerinfo.images.found = []
-				// watch out for updated list of images
-				// console.log("getting images for viewer="+viewerinfo.Viewer.Name);
-				filelist_callback(viewerinfo, function(){
-					callback(viewerinfo)
-				});
-				// console.log("returned from get images for viewer="+viewerinfo.Viewer.Name);
-			}
-			// send back the next image
-			//console.log("image count="+viewerinfo.images.found.length+" and index="+viewerinfo.index)
+        if (viewerinfo.loading==false && viewerinfo.images.found.length > 0 && viewerinfo.index>=0 ) {
+          // if the next image was loaded from the complex service
+          if (typeof viewerinfo.images.loaded_image_info != "undefined") {
+            let imageUrl = viewerinfo.images.loaded_image_info
+            delete viewerinfo.images["loaded_image_info"]
+            resolve({viewer:viewerinfo, pic:imageUrl})
+          } else {
+            // make sure to increment the index for the next file later
+            let file = viewerinfo.images.found[viewerinfo.index];
+            //console.log("=====>waiting="+waiting)
+            if(waiting ==false){
+              //console.log("Next has file="+file);
+              if(file.includes("://"))
+              {
+                if(!file.startsWith("http") && !file.startsWith("file"))
+                {
+                  let f= file.substring(0,file.indexOf("//")+2)
+                  //console.log("Next resolving image name="+file+ "for viewer="+viewerinfo.Viewer.Name+" with prefix="+f);
+                  if(resolvers[f]!=null)
+                  {
+                    if(waiting == false){
+                      //console.log("Next, needs to be resolved, file="+file)
+                      waiting=true;
+                      resolvers[f].resolver(file).then( (resolvedFile) => {
+                        // save the resolved filename
+                        viewerinfo.images.found[viewerinfo.index]=resolvedFile;
+                        //console.log("resolver for " + viewerinfo.Viewer.Name +" returned "+ resolvedFile);
+                        waiting=false;
+                        viewerinfo.index++;
+                        resolve({viewer:viewerinfo, pic:resolvedFile})
+                      })
+                    }
+                    else {
+                       resolve({viewer:viewerinfo, pic:null})
+                    }
+                  }
+                  else{
+                    //console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning returning filename="+file);
+                    viewerinfo.index++;
+                    resolve({viewer:viewerinfo, pic:file})
+                  }
+                }
+                else {
+                  //console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning http resolved filename="+file);
+                  viewerinfo.index++;
+                  resolve({viewer:viewerinfo, pic:file})
+                }
+              }
+              else {
+                //console.log("unexpected file type:"+file);
+                reject(file)
+              }
+            }
+            else {
+              //console.log("waiting viewer ="+viewerinfo.Viewer.Name)
+              resolve({viewer:viewerinfo,pic:null})
+            }
+          }
+        }
+        else {
+          //console.log("no images available for viewer ="+viewerinfo.Viewer.Name)
+          resolve({viewer:viewerinfo, pic:null})          
+        }
+      }
+      //console.log("exiting next for viewer ="+viewerinfo.Viewer.Name)
+    })
 
-			if (viewerinfo.images.found.length > 0 && viewerinfo.index>=0 ) {
-				// if the next image was loaded from the complex service
-				if (typeof viewerinfo.images.loaded_image_info != "undefined") {
-					imageUrl = viewerinfo.images.loaded_image_info
-					delete viewerinfo.images["loaded_image_info"]
-				} else {
-					// make sure to increment the index for the next file later
-					let file = viewerinfo.images.found[viewerinfo.index];
-					//console.log("=====>waiting="+waiting)
-					if(waiting ==false){
-						//console.log("Next has file="+file);
-						if(file.includes("://"))
-						{
-							if(!file.startsWith("http") && !file.startsWith("file"))
-							{
-								let f= file.substring(0,file.indexOf("//")+2)
-								//console.log("Next resolving image name="+file+ "for viewer="+viewerinfo.Viewer.Name+" with prefix="+f);
-								if(resolvers[f]!=null)
-								{
-									if(waiting == false){
-										//console.log("Next, needs to be resolved, file="+file)
-										waiting=true;
-										resolvers[f].resolve(file,
-											function (err,resolvedFile)
-											{
-												if(err==null)
-												{
-													// save the resolved filename
-													this.vinfo.images.found[this.vinfo.index]=resolvedFile;
-													console.log("resolver for " + this.vinfo.Viewer.Name +" returned "+ resolvedFile);
-												}
-												else
-												{
-													console.log("resolver for " + this.vinfo.Viewer.Name + " reported error="+err)
-												}
-												// tell the viewer next time around, that the file is usable
-												waiting=false;
-												callback(this.vinfo);
-												//console.log("=====>callabck waiting="+waiting)
-											}.bind({vinfo: viewerinfo})
-										)
-									}
-								}
-								else{
-									console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning returning filename="+file);
-									imageUrl = file
-									viewerinfo.index++;
-								}
-							}
-							else {
-								console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning http resolved filename="+file);
-								imageUrl = file
-								viewerinfo.index++;
-							}
-						}
-						else {
-							//console.log("unexpected file type:"+file);
-						}
-					}
-				}
-			}
-		}
-		return imageUrl;
 	}
-
-
 
 	function viewerRunning(viewerList, Name) {
 		let found = null;
@@ -520,11 +536,11 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			{
 				for(let tag of tags)
 				{
-					console.log("image comparing image tag id="+itag +" with "+tag._id);
+					//console.log("image comparing image tag id="+itag +" with "+tag._id);
 					if(tag._id==itag)
 					{
 						selectedimages.push(image)
-						console.log("image we have matching tag id="+tag._id);
+						//console.log("image we have matching tag id="+tag._id);
 						break byimage;
 					}
 				}
@@ -539,7 +555,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			for (let Viewer of data.ActiveViewers) {
 				if (Viewer.Tags.length > 0) {
 					//// console.log(Viewer);
-					console.log("there are " + filtered_events.length + " entries in the selected cal entry data")
+					//console.log("there are " + filtered_events.length + " entries in the selected cal entry data")
 					let tagentries=tagsfromids(Viewer.Tags)
 					let needed = false
 					// is a viewer of this name running already
@@ -548,6 +564,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 
 						// get the cal entry summary
 						let cal_entry_text = filtered_events[i].SUMMARY;
+            //console.log("summary="+filtered_events[i].SUMMARY)
 						// find any matching viewer tags in the summary
 						let tags = containsAny(cal_entry_text, tagentries);
 						// if we found some tags
@@ -562,7 +579,9 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 							// loop thru each image entry
 							for (let image of possibleimages) {
 								for (let source of data.ActiveDataSources) {
+                  //console.log("checking datasource ="+source._id.toString() + " to image datasource id="+ image.DataSource)
 									if (source._id.toString() === image.DataSource) {
+                    console.log("saving source="+source.Name+" and Image="+image.Name);
 										activeitems.push(new element(source,image))
 									}
 								}
@@ -572,10 +591,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 								if (running == null) {
 									Viewer.items = activeitems.slice();
 									// start a viewer
-									Viewer.callback = filelist_callback;
-									Viewer.next = function (x, y) {
-										return Next(x, y);
-									};
+									Viewer.next=Next;
 									ImageService.startViewer(Viewer, scope)
 									console.log("starting viewer Name="+Viewer.Name);
 
@@ -621,7 +637,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 		}
 		return selectedViewer;
 	}
-	var checkforviewers = function () {
+	function checkforviewers() {
 
 		console.log("in timer handler")
 
@@ -669,13 +685,12 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 		// console.log("electron version ="+e2c.chromiumToElectron(process.versions['chrome']));
 	};
 
-	var registerRefreshInterval =
-		function (callback, interval) {
-			if (typeof interval !== "undefined") {
-				$interval(callback, interval);
-			}
+	function registerRefreshInterval(callback, interval) {
+		if (typeof interval !== "undefined") {
+			$interval(callback, interval);
 		}
-		//service.startup($scope);
+	}
+  
 	return service;
 }
 
