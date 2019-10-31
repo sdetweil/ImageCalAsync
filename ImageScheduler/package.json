@@ -9,14 +9,18 @@
   "author": "sam detweiler",
   "license": "ISC",
   "dependencies": {
-    "connect": "^3.7.0",
-    "dropbox": "^4.0.17",
+		"connect": "^3.7.0",
     "electron-log": "^1.0.0",
     "http": "0.0.0",
     "js-yaml": "^3.13.1",
     "mongo-watch": "^0.2.8",
     "mongodb": "^2.2.11",
-    "swagger-tools": "^0.10.4"
+    "swagger-tools": "^0.10.4",
+    "dropbox": "^4.0.17",
+    "google-auth-library": "^4.2.0",
+    "googleapis": "^40.0.0",
+    "https": "^1.0.0",
+    "querystring": "^0.2.0"
   },
   "devDependencies": {
     "eslint": "^5.15.1",

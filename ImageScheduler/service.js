@@ -1,19 +1,23 @@
 "use strict";
-//const {ipcRenderer} = require('electron');
-var MongoClient = require("mongodb").MongoClient;
-//var e2c = require('electron-to-chromium');
+
 const path = require("path");
+//get the path to the current script file
+// has file:// in front of the actual path 
+const fn=document.currentScript.src.substring(7,document.currentScript.src.lastIndexOf(path.sep))
+// use the path to the plugin node_modules
 
-var webserver = require("connect")();
+var MongoClient = require(path.resolve(fn ,"node_modules","mongodb")).MongoClient;
+
+var webserver = require(path.resolve(fn ,"node_modules","connect"))();
 var http = require("http");
-var swaggerTools = require("swagger-tools");
-var jsyaml = require("js-yaml");
+var swaggerTools = require(path.resolve(fn ,"node_modules","swagger-tools"));
+var jsyaml = require(path.resolve(fn ,"node_modules","js-yaml"));
 var fsc = require("fs");
-var serverPort = 8099;
+var serverPort = config.Scheduler.ConfigServerPort || 8099;
 
-var common = require(path.resolve( __dirname , "plugins", "ImageCal", "ImageScheduler", "common"))
-//var ObjectId = require("mongodb").ObjectId;
-var MongoWatch = require("mongo-watch")
+var common = require(path.resolve(fn , "common"))
+
+var MongoWatch = require(path.resolve(fn ,"node_modules","mongo-watch")
 const OperationDelete="d";
 
 var cr = null;
@@ -35,7 +39,7 @@ var inprogress=false;
 
 //	var dateFormat = require('dateformat');
 var dgram = require("dgram");
-var glob = require("glob")
+var glob = require(path.resolve(fn ,"node_modules","glob"))
 
 var watcher;
 var pebusy = false;
@@ -47,11 +51,11 @@ let waiting = false;
 // swaggerRouter configuration
 var options = {
 	swaggerUi: "/swagger.json",
-	controllers: path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler", "config", "controllers"),
+	controllers: path.resolve(fn , "config","controllers"),
 	useStubs: false //  process.env.NODE_ENV === 'development' ? true: false
 };
 // The Swagger document (require it, build it programmatically, fetch it from a URL, ...)
-var spec = fsc.readFileSync(path.resolve(__dirname , "plugins", "ImageCal", "ImageScheduler", "config","api")+ "/swagger.yaml", "utf8");
+var spec = fsc.readFileSync(path.resolve(fn , "config","api")+ "/swagger.yaml", "utf8");
 var swaggerDoc = jsyaml.safeLoad(spec);
 
 // Initialize the Swagger middleware
