@@ -312,7 +312,7 @@ var loading= false;
 		}
 		// timer event handler
 		// get the next image for each viewer
-		function updateImg() {
+		async function updateImg() {
 			// check if busy and set if false. (test and set operation)
 			if ((busy == false) && ( busy = true )) {
 				// copy list of viewers
@@ -327,28 +327,29 @@ var loading= false;
 							// need to update this window
 							// get the next image
 							// log.warn("updateimg calling viewer next")
-
 							viewer.lastUpdate=-1;
-							viewer.Viewer.next(viewer).then( (x) => {
-								console.log("viewer last update reset check");
-								// if viewer waiting for content
-								if(x.viewer.lastUpdate==-1){
-									console.log("viewer "+x.viewer.Viewer.Name+" last update reset");
-									x.viewer.lastUpdate=1;
-								}
-                console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name)
-                // and we have a picture, watch out for race
-                if (x.pic != null) {
-                  console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name+" now loading")
-                  // log.warn("have image to load="+pic);
-                  // load the next image in the new position
-                  moveWindow(x.pic, x.viewer);
-                  // set the last updated time, will get corrected when image actualy loads
-                  console.log("resetting last update  for viewer="+x.viewer.Viewer.Name)
-                  x.viewer.lastUpdate = Date.now();
-                } 
-							});              
+							let x = null
+							//try {
+							x= await viewer.Viewer.next(viewer)//.then( (x) => {								
+							console.log("viewer last update reset check");
+							// if viewer waiting for content
+							if(x.viewer.lastUpdate==-1){
+								console.log("viewer "+x.viewer.Viewer.Name+" last update reset");
+								x.viewer.lastUpdate=1;
+							}
+							console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name)
+							// and we have a picture, watch out for race
+							if (x.pic != null) {
+								console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name+" now loading")
+								// log.warn("have image to load="+pic);
+								// load the next image in the new position
+								moveWindow(x.pic, x.viewer);
+								// set the last updated time, will get corrected when image actualy loads
+								console.log("resetting last update  for viewer="+x.viewer.Viewer.Name)
+								x.viewer.lastUpdate = Date.now();
+							}           
 						} // end if
+
 					} // end for
           busy=false;
 				} else {

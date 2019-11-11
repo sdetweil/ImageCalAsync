@@ -7,8 +7,8 @@ function worker(parm)
 	this.viewerinfo=parm;
 }
 
-module.exports.listImageFiles = function (ImageItem, viewerinfo) {
-	return new Promise((resolve,reject) =>{
+module.exports.listImageFiles = async function (ImageItem, viewerinfo) {
+	//return new Promise((resolve,reject) =>{
 		if (ImageItem.Image.PathFromSource.indexOf("*") >= 0) {
       // construct the  full path to files
 			var dpath = ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/")+ ImageItem.Image.PathFromSource;
@@ -25,87 +25,80 @@ module.exports.listImageFiles = function (ImageItem, viewerinfo) {
 				});
         }
         catch(error){
-         // console.log("dropbox error ="+error)
+				 console.log("dropbox connection error ="+error)
+         throw( "dropbox connection error ="+error)
         }
 			}
-			dbx.filesListFolder({
-				path: dpath
-			})
-        .then((response) => {
-            // console.log(response);
-          for (let file of response.entries) {
+			try {
+				let list = await dbx.filesListFolder({
+					path: dpath
+				})
+          for (let file of list.entries) {
             if (file[".tag"] === "file") {
               var filename = file.name;
-              if (ext === "/*" || filename.toLowerCase().endsWith(ext.toLowerCase().substring(ext.lastIndexOf("*")+1))){
-                viewerinfo.images.found.push(Prefix + dpath + "/" + filename)
+              if (filename.toLowerCase().endsWith(ext.toLowerCase().substring(ext.lastIndexOf("*")+1)) || 
+							  filename.toLowerCase().endsWith('.jpg') || filename.toLowerCase().endsWith('.png') || filename.toLowerCase().endsWith('.gif'))
+							{
+                viewerinfo.images.found.push(Prefix + dpath + (filename.startsWith("/")?"/":"/")+ filename)
               }
             }
           }
           //console.log("dropbox returning list="+response.entries.length);
           // let the viewer know we have files
-          resolve(viewerinfo);
-          },(error)=> {
-            console.log("Dropbox reject " + error);
-          } 
-        ).catch (
-             () =>{
+          return;
+			}
+			catch (error){
+             
                console.log("Dropbox catch " + error);
-          });
+          };
 		} else {
       // construct the url from the source and image entries
       // just one file, add it to the list
 			viewerinfo.images.found.push(Prefix + ImageItem.Source.Root + ImageItem.Image.PathFromSource);
-			resolve(viewerinfo);
+			return;
 		}
-	})
+	//})
 }
-module.exports.resolver = function (file) {
-	return new Promise((resolve,reject) =>{ 
+module.exports.resolver = async function (file) {
     // need to load the file
     // the fire back
 		var args = {}
-		args.path = file.substring(Prefix.length)
+		args.path =file.substring(Prefix.length)
+		args.path.startsWith("//")
+		   args.path=args.path.substring(1);
     //  args.settings={}
     // %Y-%m-%dT%H:%M:%SZ
 		if (waiting == false) {
 			waiting = true;
-
       // args.settings.expires=dateFormat((new Date().getTime() + 60*60000),"isoUtcDateTime");
-			dbx.sharingCreateSharedLinkWithSettings(args)
-        .then(
-           (response) => {
-             // console.log("new share url=" + response.url)
-              waiting = false;
-              resolve(response.url + "&raw=1")
-            }
-        )
-        .catch (
-          (error) => {
+			try {
+				let response=await dbx.sharingCreateSharedLinkWithSettings(args)
+				waiting = false;
+				return(response.url + "&raw=1")
+				}
+        catch (error ) {
             if (
               (error.error.error_summary.startsWith("shared_link_already_exists")) ||
                 (error.error.error_summary.startsWith("settings_error/not_authorized"))) {
-                dbx.sharingListSharedLinks(args)
-                .then(
-                  (response) => {
-                    waiting = false;
-                    //console.log("reshare url=" + response.links[0].url)
-                    resolve(response.links[0].url + "&raw=1")
-                  }
-                ).catch(
-                  () =>{
-                    waiting = false;
-                    //console.log("reshare failed url=" + file)
-                    reject("reshare failed url=" + file)
-                  }
-                )
+								try {
+									let response=await dbx.sharingListSharedLinks(args)
+									waiting = false;
+									//console.log("reshare url=" + response.links[0].url)
+									return(response.links[0].url + "&raw=1")
+								}
+							  catch(error){
+									waiting = false;
+									console.log("reshare failed url=" + file)
+									throw("failed reshare file="+file);
+								}                
             } else {
-              //console.log("Dropbox download " + error);
+              console.log("Dropbox download " + error);
               waiting = false;
-              reject("Dropbox download " + error)
+							throw("Dropbox created shared link failed, file="+file +" error=" + error)
             }
-        });
+        };
 		}
-	})
+	//})
 }
 module.exports.getPrefix = function () {
 	return Prefix;
