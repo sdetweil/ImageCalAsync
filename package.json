@@ -9,8 +9,9 @@
   "author": "sam detweiler",
   "license": "ISC",
   "dependencies": {
+    "electron-log": "^1.0.0",
     "mongodb": "2.2.11",
-    "electron-log": "^1.0.0"
+    "open": "^7.0.0"
   },
   "devDependencies": {
     "eslint": "^5.15.1",

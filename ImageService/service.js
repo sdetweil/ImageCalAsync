@@ -187,6 +187,7 @@ var loading= false;
 				try {
 					// log.warn("closing old window");
 					c.oldwindow.close();
+					c.oldwindow=null;
 				} catch (e) {
 					// log.warn("window close failed="+ex);
 				}
@@ -283,7 +284,7 @@ var loading= false;
 				//console.log("window loading url now="+image_url);
 				viewerinfo.window.loadURL(image_url);
 			} catch (e) {
-				log.warn("oops window closed on move=" + e)
+				//log.warn("oops window closed on move=" + e)
 				remove(service.viewerList, viewerinfo)
 			}
 		}

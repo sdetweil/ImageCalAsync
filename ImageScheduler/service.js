@@ -327,14 +327,10 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
   }; 
 	async function updatefilelist(viewerinfo) {
     
-    //let p= new Promise((resolve,reject) =>{
-      //console.log("in file list callback for viewer=" + viewerinfo.Viewer.Name);
-      // copy items list
       let items=viewerinfo.Viewer.items.slice();
       // loop thru all the file items
       viewerinfo.promises=[]
       items.forEach( (ImageItem) => {
-        //viewerinfo.promises.push(new Promise((resolve1,reject1) =>{
           // if the handlers haven't been loaded yet
           if(modules[ImageItem.Source.Type.Type]==null){
             // load them
@@ -342,19 +338,11 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
             modules[ImageItem.Source.Type.Type]=require(mname);
             resolvers[modules[ImageItem.Source.Type.Type].getPrefix()]=modules[ImageItem.Source.Type.Type];
           }
-            // if the handler for this source type has been loaded
+          // if the handler for this source type has been loaded
           if(modules[ImageItem.Source.Type.Type]!=null){
               // call it to get the file list
-            //console.log("calling handler for type="+ImageItem.Source.Type.Type);
-           // try{
-             viewerinfo.promises.push( modules[ImageItem.Source.Type.Type].listImageFiles(ImageItem,viewerinfo))
-           // }
-          //  catch(error){
-            //  console.log(" listimagefile error ="+error)
-            //  throw(error);
-           // }
+             viewerinfo.promises.push( modules[ImageItem.Source.Type.Type].listImageFiles(ImageItem,viewerinfo) )
           }
-        //}))
       });        
 
 			try{
