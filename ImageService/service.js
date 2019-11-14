@@ -167,7 +167,7 @@ var loading= false;
 
 			// make the window visible
 			c.viewerinfo.show = Date.now();
-			if(scope.focus != "sleep"){
+			if(scope.focus == "default"){
 				c.viewerinfo.window.show()
 			}
 			c.viewerinfo.loading=false;
@@ -258,8 +258,8 @@ var loading= false;
 				})
 				// log.warn("window created");
 				// setup handler for when window is ready to show
-				viewerinfo.window.once("ready-to-show",
-				//viewerinfo.window.webContents.on('did-finish-load',
+				//viewerinfo.window.once("ready-to-show",
+				viewerinfo.window.webContents.on('did-finish-load',
 					function ()
 					{
 						//console.log("window load completed, window="+this.c.oldwindow+" viewer="+this.c.viewerinfo+" url="+this.c.viewerinfo.url);
@@ -392,13 +392,14 @@ var loading= false;
 		service.startup = function (location, delay, $scope) {
 			scope = scope == null ? $scope : scope;
 			scope.$watch('focus', (newval,oldval)=>{		
+			  console.log("scope focus change, old="+oldval+" new="+newval);
 				// loop thru the list of viewers
 				for (let viewer of service.viewerList.slice()) {
 					if (viewer.window != null){
-						if(newval == 'sleep'){
-							viewer.window.hide();
-						} else if(oldval=='sleep'){
+						if(newval == 'default'){
 							viewer.window.show();
+						} else if(oldval=='default'){
+							viewer.window.hide();
 						}
 					}
 				}
