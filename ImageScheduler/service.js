@@ -342,6 +342,8 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
            // resolvers[prefix].module=modules[ImageItem.Source.Type.Type];
 						//resolvers[prefix].ImageItem=ImageItem
           }
+					else
+						prefix=modules[ImageItem.Source.Type.Type].getPrefix()
           // if the handler for this source type has been loaded
           if(modules[ImageItem.Source.Type.Type]!=null){
               // call it to get the file list							
