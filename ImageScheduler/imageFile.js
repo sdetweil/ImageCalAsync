@@ -42,7 +42,7 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo) {
 	})
 
 }
-module.exports.resolver = async function ( file) {
+module.exports.resolver = async function ( file,ImageItem) {
     return(actualPrefix+file.substring(Prefix.length))
 }
 module.exports.getPrefix = function () {

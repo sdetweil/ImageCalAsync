@@ -19,6 +19,8 @@ var loading= false;
 		//var mainwindow = 0;
 		var timeractve = false;
 		var scope = null;
+		
+		
 
 		function valueInRange(value, min, max) {
 			// send back the size to adjust or 0 if not in range (same as false)
@@ -165,7 +167,9 @@ var loading= false;
 
 			// make the window visible
 			c.viewerinfo.show = Date.now();
-			c.viewerinfo.window.show()
+			if(scope.focus != "sleep"){
+				c.viewerinfo.window.show()
+			}
 			c.viewerinfo.loading=false;
 			loading=false;
 			c.viewerinfo.lastUpdate = Date.now()
@@ -350,16 +354,9 @@ var loading= false;
 								x.viewer.lastUpdate = Date.now();
 							}           
 						} // end if
-
 					} // end for
           busy=false;
 				} else {
-					// loop thru the list of viewers
-					for (let viewer of viewers) {
-						if (viewer.window != null){
-							viewer.window.hide();
-						}
-					}
 				  busy = false;          
 				}
 			}	else {
@@ -394,6 +391,18 @@ var loading= false;
 		// start a viewer
 		service.startup = function (location, delay, $scope) {
 			scope = scope == null ? $scope : scope;
+			scope.$watch('focus', (newval,oldval)=>{		
+				// loop thru the list of viewers
+				for (let viewer of service.viewerList.slice()) {
+					if (viewer.window != null){
+						if(newval == 'sleep'){
+							viewer.window.hide();
+						} else if(oldval=='sleep'){
+							viewer.window.show();
+						}
+					}
+				}
+			})
 			// if we have a url
 			if (location != null) {
 				var refreshdelay = delay

@@ -59,15 +59,13 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo) {
 		}
 	//})
 }
-module.exports.resolver = async function (file) {
+module.exports.resolver = async function (file,ImageItem) {
     // need to load the file
     // the fire back
 		var args = {}
 		args.path =file.substring(Prefix.length)
 		args.path.startsWith("//")
 		   args.path=args.path.substring(1);
-    //  args.settings={}
-    // %Y-%m-%dT%H:%M:%SZ
 		if (waiting == false) {
 			waiting = true;
       // args.settings.expires=dateFormat((new Date().getTime() + 60*60000),"isoUtcDateTime");

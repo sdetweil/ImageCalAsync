@@ -5,7 +5,7 @@ var waiting=false;
 var common= require(__dirname+"/common.js");
 var url_prefix="https://drive.google.com/uc?id="
 var url_suffix="";
-var redirectUrl="http://detweiler.dyndns.org:3000/oauth2callback"; //"https://developers.google.com/oauthplayground";
+//var redirectUrl="http://detweiler.dyndns.org:3000/oauth2callback"; //"https://developers.google.com/oauthplayground";
 const {OAuth2Client} = require("google-auth-library");
 var ObjectId = require('mongodb').ObjectId;
 var authcode=0;
@@ -39,7 +39,7 @@ async function getNewToken(oauth2Clientx, Authinfo) {
 		oauth2Clientx = new OAuth2Client(
       Authinfo.Userid,
       Authinfo.Password,
-      redirectUrl )
+      Authinfo.OAuthRedirectUrl )
 		oauth2Clientx.credentials.refresh_token = Authinfo.OAuthid;
 	}
 	var authUrl = oauth2Clientx.generateAuthUrl({
@@ -205,7 +205,7 @@ function createClient(Authinfo) {
     let oAuth2Client = new OAuth2Client(
       Authinfo.Userid,
       Authinfo.Password,
-      redirectUrl
+      Authinfo.OAuthRedirectUrl
     );
  
     // Generate the url that will be used for the consent dialog.
@@ -375,12 +375,22 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo, callback)
 async function setupclient(Authinfo,ImageItem){
 	
 		let created=false;
-
+		if( oauth2Client != null){
+			if(oauth2Client.tokeninfo == undefined){
+				oauth2Client.tokeninfo=await oauth2Client.getTokenInfo(oauth2Client.credentials.access_token);
+			}
+			//console.log(JSON.stringify(tokeninfo));
+			// check to see if the access token has expired, 
+			if(moment().isAfter(oauth2Client.tokeninfo.expiry_date))
+				// force to get a new one 
+				oauth2Client=null;
+		}
 		if(oauth2Client == null)  {
 			if(Authinfo.OAuthid)
 			{
 				try {
 					oauth2Client=await getNewToken(null, Authinfo);
+					oauth2Client.tokeninfo=await oauth2Client.getTokenInfo(oauth2Client.credentials.access_token);
 					created=true;				
 					return oauth2Client;
 				}
@@ -393,8 +403,8 @@ async function setupclient(Authinfo,ImageItem){
 			}
 			if(!created)
 			{
-				newClient=await createClient(Authinfo)//.then( (newClient) =>{					
-				//oauth2Client=newClient
+				newClient=await createClient(Authinfo)				
+				newClient.tokeninfo=await newClient.getTokenInfo(newClient.credentials.access_token);
 				console.log("setup for auto update of tokens");
 				if(ImageItem != null){							
 					ImageItem.Source.Authinfo.OAuthid=newClient.credentials.refresh_token;
@@ -439,11 +449,12 @@ async function setupclient(Authinfo,ImageItem){
 			return oauth2Client
 }
 
-module.exports.resolver = async function (file) {
+module.exports.resolver = async function (file,ImageItem) {
 	console.log("file resolver returning "+url_prefix+file.substring(Prefix.length)+url_suffix+" for "+file);
     var id=file.substring(Prefix.length)
 		try { 
-				let permissionData = await drive.permissions.list({auth:oauth2Client,fileId:id})
+				let oauth2Clienty= await setupclient(null,ImageItem);
+				let permissionData = await drive.permissions.list({auth:oauth2Clienty,fileId:id})
         var update=true;
         for(var p of permissionData.data.permissions){
           if(p.type=="anyone" && p.role=="reader"){
@@ -454,8 +465,9 @@ module.exports.resolver = async function (file) {
         if(update){
           var p2={kind: "drive#permission",type:"anyone",role:"reader"}
 					try {
-						let newPermissions = await drive.permissions.create({fileId:id,auth:oauth2Client,resource:p2})// ,(err,newPermissions)=>{
-						console.log("new permissions="+JSON.stringify(newPermissions));
+						let newPermissions = await drive.permissions.create({fileId:id,auth:oauth2Clienty,resource:p2})// ,(err,newPermissions)=>{
+						console.log("new permissions="+JSON.stringify(newPermissions));		
+						oauth2Client=oauth2Clienty;
 						return(url_prefix+id+url_suffix)
 					}
 					catch(err) {

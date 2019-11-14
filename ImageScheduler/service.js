@@ -332,16 +332,22 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
       viewerinfo.promises=[]
       items.forEach( (ImageItem) => {
           // if the handlers haven't been loaded yet
+					let prefix=null
           if(modules[ImageItem.Source.Type.Type]==null){
             // load them
             let mname=fn+ "/image"+ImageItem.Source.Type.Type+".js";
             modules[ImageItem.Source.Type.Type]=require(mname);
-            resolvers[modules[ImageItem.Source.Type.Type].getPrefix()]=modules[ImageItem.Source.Type.Type];
+						prefix=modules[ImageItem.Source.Type.Type].getPrefix()
+						resolvers[prefix]={module:modules[ImageItem.Source.Type.Type],ImageItem:ImageItem }
+           // resolvers[prefix].module=modules[ImageItem.Source.Type.Type];
+						//resolvers[prefix].ImageItem=ImageItem
           }
           // if the handler for this source type has been loaded
           if(modules[ImageItem.Source.Type.Type]!=null){
-              // call it to get the file list
-             viewerinfo.promises.push( modules[ImageItem.Source.Type.Type].listImageFiles(ImageItem,viewerinfo) )
+              // call it to get the file list							
+             viewerinfo.promises.push( 
+						 resolvers[prefix].module.listImageFiles(ImageItem,viewerinfo)
+						 )
           }
       });        
 
@@ -424,7 +430,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
                       //console.log("Next, needs to be resolved, file="+file)
                       waiting=true;
 											try {
-												var resolvedFile = await resolvers[f].resolver(file)//.then( (resolvedFile) => {
+												var resolvedFile = await resolvers[f].module.resolver(file,resolvers[f].ImageItem)
 												// save the resolved filename
 												viewerinfo.images.found[viewerinfo.index]=resolvedFile;
 												//console.log("resolver for " + viewerinfo.Viewer.Name +" returned "+ resolvedFile);

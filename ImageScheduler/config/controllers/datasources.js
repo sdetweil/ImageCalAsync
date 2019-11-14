@@ -73,7 +73,8 @@ module.exports.get = function datasourcesGET (req, res, next) {
 	"Authinfo" : {
 		"Userid" : "aeiou",
 		"OAuthid" : "aeiou",
-		"Password" : "aeiou"
+		"Password" : "aeiou",
+		"OAuthRedirectUrl" : "aeiou"
 	},
 	"id" : "aeiou",
 	"Name" : "aeiou"

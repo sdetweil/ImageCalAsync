@@ -519,6 +519,9 @@ definitions:
           Password:
             type: string
             description: bar
+          OAuthRedirectUrl:
+            type: string
+            description: bar
       Root:
         type: string
   Image:
