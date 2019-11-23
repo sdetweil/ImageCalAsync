@@ -33,6 +33,7 @@ module.exports.get = function filesGET (req, res, next) {
 		if(Object.keys(examples).length > 0) 
 		{
 			res.setHeader('Content-Type', 'application/json');
+			res.setHeader('Access-Control-Allow-Origin', '*');			
 			var parms=common.params(req);
 console.log("request parms="+JSON.stringify(parms));
 

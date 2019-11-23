@@ -425,7 +425,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
                 if(!file.startsWith("http") && !file.startsWith("file"))
                 {
                   let f= file.substring(0,file.indexOf("//")+2)
-                  console.log("Next resolving image name="+file+ "for viewer="+viewerinfo.Viewer.Name+" with prefix="+f);
+                  console.log("Next resolving image name="+file+ " for viewer="+viewerinfo.Viewer.Name+" with prefix="+f);
                   if(resolvers[f]!=null)
                   {
                     if(waiting == false){
@@ -442,7 +442,7 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 											}											
 											catch(error){
 												console.log("resolver error, file="+file+" error="+error);
-												throw(error);
+												return({viewer:viewerinfo, pic:null})
 											}
                     }
                     else {

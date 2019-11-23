@@ -1,5 +1,6 @@
 //const electron = require('electron');
 const BrowserWindow = require("electron").remote.BrowserWindow;
+const unhandled = require('electron-unhandled');
 //const log = require("electron-log");
 var loading= false;
 (function () {
@@ -20,7 +21,7 @@ var loading= false;
 		var timeractve = false;
 		var scope = null;
 		
-		
+		unhandled( { showDialog:true});
 
 		function valueInRange(value, min, max) {
 			// send back the size to adjust or 0 if not in range (same as false)
@@ -334,25 +335,33 @@ var loading= false;
 							// log.warn("updateimg calling viewer next")
 							viewer.lastUpdate=-1;
 							let x = null
-							//try {
-							x= await viewer.Viewer.next(viewer)//.then( (x) => {								
-							console.log("viewer last update reset check");
-							// if viewer waiting for content
-							if(x.viewer.lastUpdate==-1){
-								console.log("viewer "+x.viewer.Viewer.Name+" last update reset");
-								x.viewer.lastUpdate=1;
+							try {
+								x= await viewer.Viewer.next(viewer)//.then( (x) => {								
+								console.log("viewer last update reset check");
+								// and we have a picture, watch out for race
+								if (x.pic != null) {								
+									// if viewer waiting for content
+									if(x.viewer.lastUpdate==-1){
+										console.log("viewer "+x.viewer.Viewer.Name+" last update reset");
+										x.viewer.lastUpdate=1;
+									}
+									console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name)
+
+									console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name+" now loading")
+									// log.warn("have image to load="+pic);
+									// load the next image in the new position
+									moveWindow(x.pic, x.viewer);
+									// set the last updated time, will get corrected when image actualy loads
+									console.log("resetting last update  for viewer="+x.viewer.Viewer.Name)
+									x.viewer.lastUpdate = Date.now();
+								}           
 							}
-							console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name)
-							// and we have a picture, watch out for race
-							if (x.pic != null) {
-								console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name+" now loading")
-								// log.warn("have image to load="+pic);
-								// load the next image in the new position
-								moveWindow(x.pic, x.viewer);
-								// set the last updated time, will get corrected when image actualy loads
-								console.log("resetting last update  for viewer="+x.viewer.Viewer.Name)
-								x.viewer.lastUpdate = Date.now();
-							}           
+							catch(error)
+							{
+								console.log("unexpected error from next="+error);
+								busy=false;
+								throw error;
+							}
 						} // end if
 					} // end for
           busy=false;

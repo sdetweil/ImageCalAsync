@@ -258,7 +258,7 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo, callback)
       // construct the  full path to files
       var dpath = ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/") + ImageItem.Image.PathFromSource;
       // get the extension of the files (jpg, gif, ...)
-      var ext = dpath.substring(dpath.lastIndexOf("/"));
+      var ext = dpath.substring(dpath.lastIndexOf("/")+1);
       // get the just the target folder for dropbox or google drive
       dpath = dpath.substring(0, dpath.lastIndexOf("/"));
       if (drive == null)
@@ -274,7 +274,7 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo, callback)
       }
       console.log("auth info="+JSON.stringify(ImageItem.Source.Authinfo));
 			
-			oauth2Client= await setupclient(ImageItem.Source.Authinfo, ImageItem);
+			oauth2Client= await setupclient(ImageItem.Source.Authinfo);
 			
       let filelist=[];
       // do we want JUST folder?
@@ -372,7 +372,7 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo, callback)
   //})
 }
 
-async function setupclient(Authinfo,ImageItem){
+async function setupclient(Authinfo){
 	
 		let created=false;
 		if( oauth2Client != null){
@@ -453,7 +453,7 @@ module.exports.resolver = async function (file,ImageItem) {
 	console.log("file resolver returning "+url_prefix+file.substring(Prefix.length)+url_suffix+" for "+file);
     var id=file.substring(Prefix.length)
 		try { 
-				let oauth2Clienty= await setupclient(null,ImageItem);
+				let oauth2Clienty= await setupclient(ImageItem.Source.Authinfo);
 				let permissionData = await drive.permissions.list({auth:oauth2Clienty,fileId:id})
         var update=true;
         for(var p of permissionData.data.permissions){
@@ -494,7 +494,7 @@ module.exports.listFiles = async function(Authinfo,dpath, FoldersOnly){
 		drive =  google.drive("v3");
 	}
 
-  let oauth2Clientl= await setupclient(Authinfo, null);
+  let oauth2Clientl= await setupclient(Authinfo);
 	
 	let filelist=[];
 	// do we want JUST folder?

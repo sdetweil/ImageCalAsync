@@ -18,6 +18,7 @@ module.exports.delete = function datasourcesDELETE (req, res, next) {
 
 		var parms=common.params(req)
 		res.setHeader('Content-Type', 'application/json');
+		res.setHeader('Access-Control-Allow-Origin', '*');		
 		if ('id' in parms)	
 		{
 	if(parms.id.length==12 || parms.id.length==24)
@@ -81,6 +82,7 @@ module.exports.get = function datasourcesGET (req, res, next) {
 		if(Object.keys(examples).length > 0) 
 		{
 			res.setHeader('Content-Type', 'application/json');
+			res.setHeader('Access-Control-Allow-Origin', '*');			
 			var parms=common.params(req)
 			if ('id' in parms)	
 	{
@@ -123,6 +125,7 @@ module.exports.post = function datasourcesPOST (req, res, next) {
 	{
 		var parms=common.params(req)
 		res.setHeader('Content-Type', 'application/json');
+		res.setHeader('Access-Control-Allow-Origin', '*');		
 		if ('body' in req)	
 		{
 				//console.log("found body")
@@ -211,6 +214,7 @@ module.exports.put = function datasourcesPUT (req, res, next) {
 
 		var parms=common.params(req)
 		res.setHeader('Content-Type', 'application/json');
+		res.setHeader('Access-Control-Allow-Origin', '*');		
 		if ('body' in req && 'id' in parms)	
 		{
 	if(parms.id.length==12 || parms.id.length==24)

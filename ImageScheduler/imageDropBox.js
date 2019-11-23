@@ -13,9 +13,12 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo) {
       // construct the  full path to files
 			var dpath = ImageItem.Source.Root + (ImageItem.Image.PathFromSource.startsWith("/")?"":"/")+ ImageItem.Image.PathFromSource;
       // get the extension of the files (jpg, gif, ...)
-			var ext = dpath.substring(dpath.lastIndexOf("/"));
+			//console.log("dpath="+dpath);
+			var ext = dpath.substring(dpath.lastIndexOf("/")+1);
       // get the just the target folder for dropbox
+		  //console.log("ext="+ext);
 			dpath = dpath.substring(0, dpath.lastIndexOf("/"));
+			//console.log("rdpath="+dpath);
       if(dpath==='/')
         dpath="";
 			if (dbx == null){
@@ -36,11 +39,15 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo) {
           for (let file of list.entries) {
             if (file[".tag"] === "file") {
               var filename = file.name;
-              if (filename.toLowerCase().endsWith(ext.toLowerCase().substring(ext.lastIndexOf("*")+1)) || 
-							  filename.toLowerCase().endsWith('.jpg') || filename.toLowerCase().endsWith('.png') || filename.toLowerCase().endsWith('.gif'))
+							let f = filename.toLowerCase();
+							//console.log("testing for filename extension="+filename+" ext='"+ext+"' extr='"+ext.toLowerCase().substring(ext.lastIndexOf("*")+1)+"'");							
+              if ((ext!='*' && ext!='/*' && f.endsWith(ext.toLowerCase().substring(ext.lastIndexOf("*")+1))) || 
+							  f.endsWith('.jpg') || f.endsWith('.png') || filename.toLowerCase().endsWith('.gif'))
 							{
                 viewerinfo.images.found.push(Prefix + dpath + (filename.startsWith("/")?"/":"/")+ filename)
               }
+							//else
+							//	console.log("skipping file that doesn't match="+filename);
             }
           }
           //console.log("dropbox returning list="+response.entries.length);
@@ -106,8 +113,15 @@ module.exports.listFiles = function(Authinfo,path,FoldersOnly, callback){
 
 	if(dbx==null)
 	{
-		dbx= new Dropbox({ accessToken: Authinfo.OAuthid });
-		console.log("have a dropbox handle")
+		try {
+				dbx = new Dropbox.Dropbox({
+					accessToken: Authinfo.OAuthid
+				});
+        }
+        catch(error){
+				 console.log("dropbox connection error ="+error)
+         throw( "dropbox connection error ="+error)
+        }
 	}
 	if(path ==="/*")
 	{path="";}
