@@ -186,7 +186,7 @@ async function listFiles(auth,parents,type,nextPageToken,Files) {
 				try {
 						let newauth=await getNewToken(auth,null)
 						oauth2Client=newauth;
-						return await listFiles(newauth,parents,type,nextPageToken,files)
+						return await listFiles(newauth,parents,type,nextPageToken,Files)
 				}
 				catch(err){
 					throw(err)
@@ -306,7 +306,7 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo, callback)
 				if(path_entries.length>0)
 				{
 					// have the list of mapped folders to ids and parents
-					var pp= updatePathWithIDs(path_entries,files);
+					var pp= updatePathWithIDs(path_entries,x.files);
 					parents=pp[pp.length-1].name;
 					if(parents=="")
 					{parents="root";}
@@ -329,11 +329,11 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo, callback)
 						}
 					}
 					// if the access token has changed                 
-					if(x.newtoken != undefined && x.newtoken!==ImageItem.Source.Authinfo.OAuthid && 0==1)
+					if(x.token != undefined && x.token!==ImageItem.Source.Authinfo.OAuthid && 0==1)
 					{
-						console.log("end of file list new_token="+x.newtoken+" old token="+ImageItem.Source.Authinfo.OAuthid);										
+						console.log("end of file list new_token="+x.token+" old token="+ImageItem.Source.Authinfo.OAuthid);										
 						// save it in the running item for next cycle
-						oauth2Client.credentials.refresh_token=oauth2Client.credentials.access_token=ImageItem.Source.Authinfo.OAuthid=x.newtoken;
+						oauth2Client.credentials.refresh_token=oauth2Client.credentials.access_token=ImageItem.Source.Authinfo.OAuthid=x.token;
 						console.log("updating database for datasource id="+ImageItem.Source._id);
 						try {
 							let result=await common.getdb().collection("DataSources").update({_id: ObjectId(ImageItem.Source._id) },ImageItem.Source)
@@ -489,7 +489,7 @@ module.exports.getPrefix = function () {
 	return Prefix;
 }
 let oauth2Client1={};
-module.exports.listFiles = async function(Authinfo,dpath, FoldersOnly){
+module.exports.listFiles = async function(Authinfo,dpath, FoldersOnly, callback){
 	if (drive == null){
 		drive =  google.drive("v3");
 	}
@@ -526,7 +526,7 @@ module.exports.listFiles = async function(Authinfo,dpath, FoldersOnly){
 		if(path_entries.length>0)
 		{
 			// have the list of mapped folders to ids and parents
-			var pp= updatePathWithIDs(path_entries,files);
+			var pp= updatePathWithIDs(path_entries,x.files);
 			parents=pp[pp.length-1].name;
 			if(parents=="")
 			{parents="root";}
@@ -551,14 +551,15 @@ module.exports.listFiles = async function(Authinfo,dpath, FoldersOnly){
 				entry.id=file.id;
 				Files.push(entry);
 			}
-			return({file:Files,token:newtoken});
+			callback(null,Files,null);
 		}
 		catch(err) {
-			throw(err);
+			callback(error,null,null);
 		}
-}
+	}
 	catch(error){
 		console.log("remote file list error="+error);
+		callback(error,null,null);
 	}
 }
 var updatePathWithIDs = function(path_array,name_array)

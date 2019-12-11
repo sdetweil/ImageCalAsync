@@ -149,99 +149,101 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 			config.Scheduler.MongoDBName,
 
 	function (err, db) {
-		vdb = db;
-		common.setdb(vdb)
-		getData();
-		watcher = new MongoWatch({
-			format: "pretty"
-		})
+		if(!err) {
+			vdb = db;
+			common.setdb(vdb)
+			getData();
+			watcher = new MongoWatch({
+				format: "pretty", host:config.Scheduler.MongoDBLocation, port:config.Scheduler.MongoPort
+			})
 
-		watcher.watch(config.Scheduler.MongoDBName+ ".EventViewers",
-			function (event) {
-				// console.log("mongo EventViewer collection event=" + event.toString());
-				dbData.valid=false;
-				if (event.operation == OperationDelete) {
-					// console.log("shutdown any viewer that is running but deleted");
-					let running = viewerRunning(ImageService.viewerList, event.data._id);
-					if (running)
-					// stop it
-					{ImageService.cancel(running.Viewer);}
-				} else {
-					closeopenviewers()
-					checkforviewers()
-				}
-			});
-		watcher.watch(config.Scheduler.MongoDBName+ ".DataSources",
-			function (event) {
-				// console.log("mongo DataSources collection event=" + event.toString());
-				dbData.valid=false;
-				if (event.operation == OperationDelete) {
-					// loop thru the list of active viewers
-					for (let viewerinfo of ImageService.viewerList) {
-						// watch out for looping thru the list you are changing
-						let list = viewerinfo.Viewer.items
-						// loop thru the data items currently used, loop thru the copy
-						for (let ImageItem of list) {
-							// console.log("shutdown any viewer where the datasource was deleted");
-							// if the source entry matches the one removed
-							if (ImageItem.Source._id == event.data._id) {
-								// remove this item from the list
-								removeImageItemfromlist(viewerinfo.Viewer.items, ImageItem)
+			watcher.watch(config.Scheduler.MongoDBName+ ".EventViewers",
+				function (event) {
+					// console.log("mongo EventViewer collection event=" + event.toString());
+					dbData.valid=false;
+					if (event.operation == OperationDelete) {
+						// console.log("shutdown any viewer that is running but deleted");
+						let running = viewerRunning(ImageService.viewerList, event.data._id);
+						if (running)
+						// stop it
+						{ImageService.cancel(running.Viewer);}
+					} else {
+						closeopenviewers()
+						checkforviewers()
+					}
+				});
+			watcher.watch(config.Scheduler.MongoDBName+ ".DataSources",
+				function (event) {
+					// console.log("mongo DataSources collection event=" + event.toString());
+					dbData.valid=false;
+					if (event.operation == OperationDelete) {
+						// loop thru the list of active viewers
+						for (let viewerinfo of ImageService.viewerList) {
+							// watch out for looping thru the list you are changing
+							let list = viewerinfo.Viewer.items
+							// loop thru the data items currently used, loop thru the copy
+							for (let ImageItem of list) {
+								// console.log("shutdown any viewer where the datasource was deleted");
+								// if the source entry matches the one removed
+								if (ImageItem.Source._id == event.data._id) {
+									// remove this item from the list
+									removeImageItemfromlist(viewerinfo.Viewer.items, ImageItem)
+								}
+							}
+							// if there are no more things to view
+							if (viewerinfo.Viewer.items.length == 0) {
+								// console.log("shutdown viewer where the there are no data sources of images to show");
+								// close the viewer
+								ImageService.cancel(viewerinfo.Viewer);
 							}
 						}
-						// if there are no more things to view
-						if (viewerinfo.Viewer.items.length == 0) {
-							// console.log("shutdown viewer where the there are no data sources of images to show");
-							// close the viewer
-							ImageService.cancel(viewerinfo.Viewer);
-						}
+					} else {
+						checkforviewers()
 					}
-				} else {
-					checkforviewers()
+				});
+			watcher.watch(config.Scheduler.MongoDBName+ ".Tags",
+				function (event) {
+					dbData.valid=false;
+					// console.log("mongo Tags collection event=" + event.toString());
+					if (event.operation == OperationDelete) {
+						// tag deleted
+						// need to get all images that use that tag id,
+						// loop thru all active viewers, and their imageitem list to see if there is a data source
+						// that matches the datasource of the image of the removed tag
+						// and if so, then shutdown that viewer..
+					}
 				}
-			});
-		watcher.watch(config.Scheduler.MongoDBName+ ".Tags",
-			function (event) {
-				dbData.valid=false;
-				// console.log("mongo Tags collection event=" + event.toString());
-				if (event.operation == OperationDelete) {
-					// tag deleted
-					// need to get all images that use that tag id,
-					// loop thru all active viewers, and their imageitem list to see if there is a data source
-					// that matches the datasource of the image of the removed tag
-					// and if so, then shutdown that viewer..
-				}
-			}
-		)
+			)
 
-		watcher.watch(config.Scheduler.MongoDBName+ ".Images",
-			function (event) {
-				// console.log("mongo Images collection event=" + event.toString());
-				dbData.valid=false;
-				if (event.operation == OperationDelete) {
-					// loop thru the list of active viewers
-					for (let viewerinfo of ImageService.viewerList) {
-						// watch out for looping thru the list you are changing
-						let list = viewerinfo.Viewer.items
-						// loop thru the data items currently used, loop thru the copy
-						for (let ImageItem of list) {
-							// if the source entry matches the one removed
-							if (ImageItem.Image._id == event.data._id) {
-								// remove this item from the list
-								removeImageItemfromlist(viewerinfo.Viewer.items, ImageItem)
+			watcher.watch(config.Scheduler.MongoDBName+ ".Images",
+				function (event) {
+					// console.log("mongo Images collection event=" + event.toString());
+					dbData.valid=false;
+					if (event.operation == OperationDelete) {
+						// loop thru the list of active viewers
+						for (let viewerinfo of ImageService.viewerList) {
+							// watch out for looping thru the list you are changing
+							let list = viewerinfo.Viewer.items
+							// loop thru the data items currently used, loop thru the copy
+							for (let ImageItem of list) {
+								// if the source entry matches the one removed
+								if (ImageItem.Image._id == event.data._id) {
+									// remove this item from the list
+									removeImageItemfromlist(viewerinfo.Viewer.items, ImageItem)
+								}
+							}
+							// if there are no more things to view
+							if (viewerinfo.Viewer.items.length == 0) {
+								// console.log("shutdown viewer where the there are no more images to show");
+								// close the viewer
+								ImageService.cancel(viewerinfo.Viewer);
 							}
 						}
-						// if there are no more things to view
-						if (viewerinfo.Viewer.items.length == 0) {
-							// console.log("shutdown viewer where the there are no more images to show");
-							// close the viewer
-							ImageService.cancel(viewerinfo.Viewer);
-						}
+					} else {
+						checkforviewers()
 					}
-				} else {
-					checkforviewers()
-				}
-			});
+				});
+		}
 	});
 
 	function removeImageItemfromlist(list, item) {

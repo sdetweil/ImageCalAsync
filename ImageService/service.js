@@ -1,12 +1,15 @@
 //const electron = require('electron');
 const BrowserWindow = require("electron").remote.BrowserWindow;
-const unhandled = require('electron-unhandled');
+const sfn=document.currentScript.src.substring(7,document.currentScript.src.lastIndexOf(path.sep))
+const unhandled = require(path.resolve(sfn ,"../ImageScheduler","node_modules","electron-unhandled"));
 //const log = require("electron-log");
-var loading= false;
+const { webFrame } = require('electron');
+
+
 (function () {
 	"use strict";
 
-	function ImageService($http, $interval) {
+	function ImageService($interval) {
 		//var debug = false;
 		var SCREEN_W = -1;
 		var SCREEN_H = -1;
@@ -20,9 +23,9 @@ var loading= false;
 		//var mainwindow = 0;
 		var timeractve = false;
 		var scope = null;
-		
-		unhandled( { showDialog:true});
 
+		unhandled( { showDialog:false});
+var loading=null;
 		function valueInRange(value, min, max) {
 			// send back the size to adjust or 0 if not in range (same as false)
 			return ((value >= min) && (value <= max)) ? max - value : 0;
@@ -143,21 +146,15 @@ var loading= false;
 			return info
 		}
 
-		function worker(window, viewer)
-		{
-			this.oldwindow=window;
-			this.viewerinfo=viewer;
-		}
-		function loaded(c)
-		{
+		function loaded(viewerinfo){
 			// log.warn("have window to process after load");
 
 			// resize the new window
 			try {
 				// log.warn("window resize url="+c.viewerinfo.url);
-				c.viewerinfo.window.webContents.executeJavaScript("if (document.images[0]) window.resizeTo(Math.min(document.images[0].width,window.innerWidth), Math.min(document.images[0].height,window.innerHeight));");
+				viewerinfo.window.webContents.executeJavaScript("if (document.images[0]) window.resizeTo(Math.min(document.images[0].width,window.innerWidth), Math.min(document.images[0].height,window.innerHeight));");
 				// force repaint after resize
-				c.viewerinfo.window.webContents.invalidate();
+				viewerinfo.window.webContents.invalidate();
 			} catch (ex) {
 				// log.warn("window resize failed="+ex);
 			}
@@ -167,49 +164,64 @@ var loading= false;
 			// log.warn("showing window now");
 
 			// make the window visible
-			c.viewerinfo.show = Date.now();
+			viewerinfo.show = Date.now();
 			if(scope.focus == "default"){
-				c.viewerinfo.window.show()
+				viewerinfo.window.show()
 			}
-			c.viewerinfo.loading=false;
-			loading=false;
-			c.viewerinfo.lastUpdate = Date.now()
+
+			viewerinfo.window.removeListener('did-finish-load',finishload)
+			viewerinfo.loading=false;
+			loading=null;
+			viewerinfo.lastUpdate = Date.now()
 			// if old window exists
-			if (c.oldwindow != null) {
+			if (viewerinfo.oldwindow != null) {
 				// log.warn("hiding old window");
-				c.oldwindow.webContents.invalidate();
-				c.oldwindow.hide();
+				viewerinfo.oldwindow.webContents.invalidate();
+				viewerinfo.oldwindow.hide();
 			}
 			else {
 				// log.warn("old window is null");
 			}
 
 			// if old window exists
-			if (c.oldwindow != null) {
+			if (viewerinfo.oldwindow != null) {
 				// remove any close listeners
-				c.oldwindow.removeAllListeners("closed");
+				viewerinfo.oldwindow.removeAllListeners("closed");
 				// close it
 				try {
 					// log.warn("closing old window");
-					c.oldwindow.close();
-					c.oldwindow=null;
+					viewerinfo.oldwindow.close();
+					viewerinfo.oldwindow=null;
 				} catch (e) {
 					// log.warn("window close failed="+ex);
 				}
 			}
 		}
+		function finishload(){
+			//console.log("window load completed, viewer="+loading.Viewer.Name+" url="+loading.url);
+			//loaded(this.c);
+			let t = loading
+			loading=null;
+			service.windowlist.push(t);
+		}
 		function moveWindow(image_url, viewerinfo) {
 
 			try {
-				var window = viewerinfo.window;
-				//  get the current window size
-				var winsize = window.getSize();
-				// and position
+				let winsize=[]
+				if(viewerinfo.window !=null){
+					let window = viewerinfo.window;
+					//  get the current window size
+					winsize = window.getSize();
+				}
+				else{
+					winsize=[viewerinfo.config.width,viewerinfo.config.height]
+				}
+				// and positionc.viewerinfo
 				//var winpos  = window.getPosition();
 
 				// calculate new window position
-				var new_x = (rand() % (SCREEN_W - winsize[0] * 2)) + winsize[0];
-				var new_y = (rand() % (SCREEN_H - winsize[1] * 2)) + winsize[1];
+				let new_x = (rand() % (SCREEN_W - winsize[0] * 2)) + winsize[0];
+				let new_y = (rand() % (SCREEN_H - winsize[1] * 2)) + winsize[1];
 				// calculate the movement delta
 				viewerinfo.dx = rand() % 2 * 2 - 1; //-1 or 1
 				viewerinfo.dy = rand() % 2 * 2 - 1;
@@ -226,12 +238,12 @@ var loading= false;
 				// if there other windows we might overlap
 				if (service.viewerList.length > 1) {
 					// check and adjust the proposed new position to avoid overlap
-					var info = checkWindowOverlap(viewerinfo, new_x, new_y);
+					let info = checkWindowOverlap(viewerinfo, new_x, new_y);
 					new_x = info.x;
 					new_y = info.y;
 				}
 				// log.warn("have window position");
-				var wconfig = {
+				let wconfig = {
 					width: viewerinfo.config.width,
 					height: viewerinfo.config.height,
 					x: new_x,
@@ -240,8 +252,8 @@ var loading= false;
 				// save the config
 				viewerinfo.config = wconfig
 				// get the current window object
-				var oldwindow = viewerinfo.window
-
+				viewerinfo.oldwindow = viewerinfo.window
+				viewerinfo.window=null;
 				// create the window, in new position, hidden
 				viewerinfo.window = new BrowserWindow({
 					width: viewerinfo.config.width,
@@ -250,46 +262,44 @@ var loading= false;
 					y: new_y,
 					alwaysOnTop: true,
 					show:false,
-					//transparent: true,
+					transparent: true,
 					backgroundColor: "#000000",
 					dx: 0,
 					dy: 0,
 					frame: false,
 					skipTaskbar: true
+					//title:viewerinfo.Viewer.Name
 				})
 				// log.warn("window created");
 				// setup handler for when window is ready to show
-				//viewerinfo.window.once("ready-to-show",
-				viewerinfo.window.webContents.on('did-finish-load',
-					function ()
-					{
-						//console.log("window load completed, window="+this.c.oldwindow+" viewer="+this.c.viewerinfo+" url="+this.c.viewerinfo.url);
-						//loaded(this.c);
-						service.windowlist.push(this.c);
-						// log.warn("window load completed");
-					}.bind({c: new worker(oldwindow,viewerinfo)})
-				);
-
+				//viewerinfo.window.once("ready-to-show",()=>{ if(scope.focus == "default") {viewerinfo.window.show()}})
+				viewerinfo.window.webContents.on('did-finish-load',finishload);
+				viewerinfo.window.hide();
 				// setup the window close handler
-				viewerinfo.window.on("closed",
-					function ()
+				viewerinfo.window.on("closed", ()=>
+				//	function ()
 					{
 						// log.warn("window removed from list url="+this.c.viewerinfo.url);
-						remove(service.viewerList, this.c.viewerinfo);
-					}.bind({c: new worker(oldwindow,viewerinfo)})
+						remove(service.viewerList, viewerinfo);
+					}// .bind({c: new worker(oldwindow,viewerinfo)})
 				);
+				viewerinfo.window.webContents.on('crashed', (e) => {
+					console.log("window crashed error ="+ JSON.stringify(e));
+				});
 				// load the new image into it
 
 				viewerinfo.url=image_url;
 				// save the position info in the viewer
 				viewerinfo.config.x = new_x;
 				viewerinfo.config.y = new_y;
-				loading=true;
+				loading=viewerinfo;
 				viewerinfo.loading=true;
-				//console.log("window loading url now="+image_url);
+				console.log("window loading url now="+image_url);
+				viewerinfo.window.hide()
 				viewerinfo.window.loadURL(image_url);
+				viewerinfo.window.hide()
 			} catch (e) {
-				//log.warn("oops window closed on move=" + e)
+				console.log("oops window closed on move=" + e)
 				remove(service.viewerList, viewerinfo)
 			}
 		}
@@ -329,17 +339,17 @@ var loading= false;
 					// loop thru the list of viewers
 					for (let viewer of viewers) {
 						// if the viewer needs updating
-						if ( (viewer.lastUpdate>0) && (now > (viewer.lastUpdate + (viewer.refreshIntervalSeconds * 1000))) && loading==false) {
+						if ( (viewer.lastUpdate>0) && (now > (viewer.lastUpdate + (viewer.refreshIntervalSeconds * 1000))) && loading==null) {
 							// need to update this window
 							// get the next image
 							// log.warn("updateimg calling viewer next")
-							viewer.lastUpdate=-1;
 							let x = null
 							try {
-								x= await viewer.Viewer.next(viewer)//.then( (x) => {								
+								x= await viewer.Viewer.next(viewer)//.then( (x) => {
+								viewer.lastUpdate=-1;
 								console.log("viewer last update reset check");
 								// and we have a picture, watch out for race
-								if (x.pic != null) {								
+								if (x.pic != null) {
 									// if viewer waiting for content
 									if(x.viewer.lastUpdate==-1){
 										console.log("viewer "+x.viewer.Viewer.Name+" last update reset");
@@ -354,7 +364,7 @@ var loading= false;
 									// set the last updated time, will get corrected when image actualy loads
 									console.log("resetting last update  for viewer="+x.viewer.Viewer.Name)
 									x.viewer.lastUpdate = Date.now();
-								}           
+								}
 							}
 							catch(error)
 							{
@@ -366,7 +376,7 @@ var loading= false;
 					} // end for
           busy=false;
 				} else {
-				  busy = false;          
+				  busy = false;
 				}
 			}	else {
 				// log.warn("update img was busy already");
@@ -385,12 +395,12 @@ var loading= false;
 				// use the 1st entry in the array
 				// note splice returns an array, even if only 1 element
 				let c = s.splice(0,1)[0];
-				loaded(c);
+				if(c !=null)
+					loaded(c);
 			}		// end of while loop
+
 			updateImg();
 		}
-
-
 
 		service.startViewer = function (Viewer, $scope) {
 			//// log.warn("starting a new viewer="+Viewer.Name);
@@ -400,7 +410,7 @@ var loading= false;
 		// start a viewer
 		service.startup = function (location, delay, $scope) {
 			scope = scope == null ? $scope : scope;
-			scope.$watch('focus', (newval,oldval)=>{		
+			scope.$watch('focus', (newval,oldval)=>{
 			  console.log("scope focus change, old="+oldval+" new="+newval);
 				// loop thru the list of viewers
 				for (let viewer of service.viewerList.slice()) {
@@ -460,20 +470,7 @@ var loading= false;
 					y: y
 				}
 				viewerinfo.config = JSON.parse(JSON.stringify(wconfig));
-				// create the window
-				viewerinfo.window = new BrowserWindow({
-					width: dx,
-					height: dy,
-					x: x,
-					y: y,
-					alwaysOnTop: true,
-					show: false,
-					transparent: true,
-					dx: 0,
-					dy: 0,
-					frame: false,
-					skipTaskbar: true
-				})
+
 				service.viewerList.push(viewerinfo);
 
 			}
@@ -508,6 +505,41 @@ var loading= false;
 		console.log("returning ImageService object");
 		return service;
 	}
+	function format(x){
+		return x;
+	}
+	function toMb(x){
+		return x
+	}
+	function getMemory() {
+		// `format` omitted  (pads + limits to 15 characters for the output)
+		function logMemDetails(x) {
+			function toMb(bytes) {
+				return (bytes / (1000.0 * 1000)).toFixed(2)
+			}
+
+			console.log(
+				format(x[0]),
+				format(x[1].count),
+				format(toMb(x[1].size) + "MB"),
+				format(toMb(x[1].liveSize) +"MB")
+			)
+		}
+
+		console.log(
+			format("object"),
+			format("count"),
+			format("size"),
+			format("liveSize")
+		)
+		Object.entries(webFrame.getResourceUsage()).map(logMemDetails)
+		console.log('------')
+	}
+
+  //setInterval(getMemory, 5000)
+
+	setInterval( ()=>{webFrame.clearCache()}, 15000)
+
 	console.log("registering ImageService");
 	angular.module("SmartMirror")
 		.factory("ImageService", ImageService);

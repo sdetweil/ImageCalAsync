@@ -1,17 +1,10 @@
 {
-  "name": "imagecal",
+  "name": "imagecalasync",
   "version": "1.0.0",
-  "description": "smart mirror plugins for calendar based image display",
+  "description": "smart-mirror plugin for calendar connected image notifications",
   "main": "service.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "sam detweiler",
-  "license": "ISC",
   "dependencies": {
-    "electron-log": "^1.0.0",
-    "mongodb": "2.2.11",
-    "open": "^7.0.0"
+    "electron-log": "^1.0.0"
   },
   "devDependencies": {
     "eslint": "^5.15.1",
@@ -22,4 +15,22 @@
     "eslint-plugin-react": "^7.12.4",
     "eslint-plugin-standard": "^4.0.0"
   }
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "cd ImageScheduler &&  npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sdetweil/ImageCalAsync.git"
+  },
+  "keywords": [
+    "calendar",
+    "image"
+  ],
+  "author": "sam detweiler",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sdetweil/ImageCalAsync/issues"
+  },
+  "homepage": "https://github.com/sdetweil/ImageCalAsync#readme"
 }
