@@ -1,5 +1,6 @@
 var Dropbox = require("dropbox");
 var Prefix= "dropbox://";
+var fetch = require('isomorphic-fetch');
 var dbx=null;
 var waiting=false;
 function worker(parm)
@@ -24,7 +25,7 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo) {
 			if (dbx == null){
         try {
 				dbx = new Dropbox.Dropbox({
-					accessToken: ImageItem.Source.Authinfo.OAuthid
+					accessToken: ImageItem.Source.Authinfo.OAuthid, fetch:fetch
 				});
         }
         catch(error){
@@ -66,7 +67,7 @@ module.exports.listImageFiles = async function (ImageItem, viewerinfo) {
 		}
 	//})
 }
-module.exports.resolver = async function (file,ImageItem) {
+module.exports.resolve = async function (file,ImageItem) {
     // need to load the file
     // the fire back
 		var args = {}
@@ -82,6 +83,7 @@ module.exports.resolver = async function (file,ImageItem) {
 				return(response.url + "&raw=1")
 				}
         catch (error ) {
+					console.log("dbx sharing error="+JSON.stringify(error));
             if (
               (error.error.error_summary.startsWith("shared_link_already_exists")) ||
                 (error.error.error_summary.startsWith("settings_error/not_authorized"))) {

@@ -12,16 +12,18 @@
     "connect": "^3.7.0",
     "dropbox": "^4.0.17",
     "electron-log": "^1.0.0",
+    "electron-unhandled": "^3.0.1",
     "google-auth-library": "^4.2.0",
     "googleapis": "^40.0.0",
     "http": "0.0.0",
     "https": "^1.0.0",
+    "isomorphic-fetch": "^2.2.1",
     "js-yaml": "^3.13.1",
     "mongo-watch": "^0.2.8",
     "mongodb": "^2.2.11",
+    "open": "^7.0.0",
     "querystring": "^0.2.0",
-    "swagger-tools": "^0.10.4",
-    "electron-unhandled": "^3.0.1"
+    "swagger-tools": "^0.10.4"
   },
   "devDependencies": {
     "eslint": "^5.15.1",

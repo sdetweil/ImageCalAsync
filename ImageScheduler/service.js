@@ -31,7 +31,6 @@ dbData.Images=[]
 dbData.Tags=[]
 dbData.valid=false;
 
-var resolvers={};
 var modules={"file":null,"DropBox":null,"GoogleDrive":null,"OneDrive":null};
 
 var FilePrefix="foo://"
@@ -340,35 +339,30 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
             let mname=fn+ "/image"+ImageItem.Source.Type.Type+".js";
             modules[ImageItem.Source.Type.Type]=require(mname);
 						prefix=modules[ImageItem.Source.Type.Type].getPrefix()
-						resolvers[prefix]={module:modules[ImageItem.Source.Type.Type],ImageItem:ImageItem }
-           // resolvers[prefix].module=modules[ImageItem.Source.Type.Type];
-						//resolvers[prefix].ImageItem=ImageItem
           }
-					else
+					else{
 						prefix=modules[ImageItem.Source.Type.Type].getPrefix()
+					}
+					viewerinfo.resolvers[prefix]={module:modules[ImageItem.Source.Type.Type],ImageItem:ImageItem}
           // if the handler for this source type has been loaded
           if(modules[ImageItem.Source.Type.Type]!=null){
               // call it to get the file list							
              viewerinfo.promises.push( 
-						 resolvers[prefix].module.listImageFiles(ImageItem,viewerinfo)
+								viewerinfo.resolvers[prefix].module.listImageFiles(ImageItem,viewerinfo)
 						 )
           }
       });        
-
-			try{
-				await Promise.all(viewerinfo.promises)/* .then(()=>{
-					 //console.log(" all sources loaded")
-					 resolve(viewerinfo);
-				}, (error)=>{
-					console.log("reject error ="+ error)
-				}).catch(function(err) {
-					console.log("promise all error="+err.message); // some coding error in handling happened
-				});*/
-				return(viewerinfo);
+			if(viewerinfo.promises.length>0){
+				try{
+					await Promise.all(viewerinfo.promises)
+					return(viewerinfo);
+				}
+				catch(error){
+					throw("promise all error="+error.message); // some coding error in handling happened
+				}	
 			}
-			catch(error){
-				throw("promise all error="+error.message); // some coding error in handling happened
-			}	
+			else
+				return(viewerinfo);
 
       //console.log("done in updatefilelist for viewer=" + viewerinfo.Viewer.Name);
     //});
@@ -428,40 +422,41 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
                 {
                   let f= file.substring(0,file.indexOf("//")+2)
                   console.log("Next resolving image name="+file+ " for viewer="+viewerinfo.Viewer.Name+" with prefix="+f);
-                  if(resolvers[f]!=null)
+                  if(viewerinfo.resolvers[f]!=null)
                   {
                     if(waiting == false){
                       //console.log("Next, needs to be resolved, file="+file)
                       waiting=true;
 											try {
-												var resolvedFile = await resolvers[f].module.resolver(file,resolvers[f].ImageItem)
+												var resolvedFile = await viewerinfo.resolvers[f].module.resolve(file,viewerinfo.resolvers[f].ImageItem)
 												// save the resolved filename
 												viewerinfo.images.found[viewerinfo.index]=resolvedFile;
 												//console.log("resolver for " + viewerinfo.Viewer.Name +" returned "+ resolvedFile);
 												waiting=false;
 												viewerinfo.index++;
-												return({viewer:viewerinfo, pic:resolvedFile})													
+												return(resolvedFile)													
 											}											
 											catch(error){
 												console.log("resolver error, file="+file+" error="+error);
-												return({viewer:viewerinfo, pic:null})
+												self.waiting=false;
+												return(null)
 											}
                     }
                     else {
                        //console.log("waiting 2 viewer  ="+viewerinfo.Viewer.Name)
-                       return({viewer:viewerinfo, pic:null})
+                       return(null)
                     }
                   }
                   else{
                     //console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning returning filename="+file);
                     viewerinfo.index++;
-                    return({viewer:viewerinfo, pic:file})
+                    return(file)
                   }
                 }
                 else {
                   //console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning http resolved filename="+file);
                   viewerinfo.index++;
-                  return({viewerinfo:viewerinfo, pic:file})
+                  return(file)
                 }
               }
               else {
@@ -471,13 +466,13 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
             }
             else {
               //console.log("waiting viewer ="+viewerinfo.Viewer.Name)
-              return({viewerinfo:viewerinfo,pic:null})
+              return(null)
             }
           }
         }
         else {
           //console.log("no images available for viewer ="+viewerinfo.Viewer.Name)
-					return({viewerinfo:viewerinfo, pic:null})
+					return(null)
         }
       }
       //console.log("exiting next for viewer ="+viewerinfo.Viewer.Name)
@@ -646,7 +641,12 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 					// one is running
 					if (needed == false && running != null  && running.loading==false) {
 						// stop it
-						ImageService.cancel(Viewer);
+						try { 
+							ImageService.cancel(Viewer);
+						}
+						catch(error)
+						{
+						}
 					}
 				}
 			}

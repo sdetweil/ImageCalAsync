@@ -24,6 +24,8 @@ const { webFrame } = require('electron');
 		var timeractve = false;
 		var scope = null;
 
+
+
 		unhandled( { showDialog:false});
 var loading=null;
 		function valueInRange(value, min, max) {
@@ -60,7 +62,7 @@ var loading=null;
 				for (var i = 0; i < service.viewerList.length; i++) {
 					// exclude the window we are calculating for
 					if (service.viewerList[i].window != viewerinfo.window) {
-						// log.warn("processing for other window at " +service.viewerList[i].config.x+","+service.viewerList[i].config.y);
+						// console.log("processing for other window at " +service.viewerList[i].config.x+","+service.viewerList[i].config.y);
 						// other window in the list for overlap detection
 						var theirRect = {
 							x: service.viewerList[i].config.x,
@@ -80,13 +82,13 @@ var loading=null;
 							}
 							// get the overlap info, if any
 							var diffs = rectOverlap(ourRect, theirRect);
-							// log.warn("diffs x="+ diffs.xdiff +" y="+diffs.ydiff)
+							// console.log("diffs x="+ diffs.xdiff +" y="+diffs.ydiff)
 							// if there is (either coordiante diff >0 is overlap), attempt to adjust position to prevent overlap
 							if (diffs.xdiff > 0 && diffs.ydiff > 0) {
-								// log.warn("windows overlap");
+								// console.log("windows overlap");
 								// if 1st or second time thru the loop
 								if (o <= 1) {
-									// log.warn("1st time calc");
+									// console.log("1st time calc");
 									// adjust x first (left amount to eliminate overlap)
 									if (diffs.xdiff < diffs.ydiff && SCREEN_W > SCREEN_H)
 									{new_x = Math.max(new_x - diffs.xdiff, 0)}
@@ -94,32 +96,32 @@ var loading=null;
 									// adjust y (up amount to eliminate overlap)
 									{new_y = Math.max(new_y - diffs.ydiff, 0)}
 								} else {
-									// log.warn("NOT 1st time calc");
+									// console.log("NOT 1st time calc");
 									if (o < 10) {
-										// log.warn("trying for the "+o+"th time");
+										// console.log("trying for the "+o+"th time");
 										// if we tried already twice and are stuck, in the corner at 1/2 window size (x and y)
 										if (new_x < viewerinfo.config.width / 2 && new_y < viewerinfo.config.height / 2) {
 											// then force a wild change, middle of the screen
 											new_y = SCREEN_H / 2
 											new_x = SCREEN_W / 2
-											// log.warn("new adjustment");
+											// console.log("new adjustment");
 										} else {
 											// force one dimension to edge)
-											// log.warn("forcing position");
+											// console.log("forcing position");
 											// already left
 											if (new_x == 0){
 												// move up
 												new_y = 0
-												// log.warn("force Y position = 0");
+												// console.log("force Y position = 0");
 											}
 											else {
 												// already up, move left
 												new_x = 0
-												// log.warn("force X position = 0");
+												// console.log("force X position = 0");
 											}
 										}
 									} else {
-										// log.warn("break out of loop, can't resolve");
+										// console.log("break out of loop, can't resolve");
 										changed = false;
 										break;
 									}
@@ -131,10 +133,10 @@ var loading=null;
 								}
 								// say weve changed the data from what was provided
 								changed = true
-								// log.warn("have new position, recheck");
+								// console.log("have new position, recheck");
 							} else {
 								changed = false;
-								// log.warn("diffs 0, no overlap ");
+								// console.log("diffs 0, no overlap ");
 								// diffs both 0, so no overlap
 								break;
 							}
@@ -147,26 +149,27 @@ var loading=null;
 		}
 
 		function loaded(viewerinfo){
-			// log.warn("have window to process after load");
+			// console.log("have window to process after load");
 
 			// resize the new window
 			try {
-				// log.warn("window resize url="+c.viewerinfo.url);
+				// console.log("window resize url="+c.viewerinfo.url);
 				viewerinfo.window.webContents.executeJavaScript("if (document.images[0]) window.resizeTo(Math.min(document.images[0].width,window.innerWidth), Math.min(document.images[0].height,window.innerHeight));");
 				// force repaint after resize
 				viewerinfo.window.webContents.invalidate();
 			} catch (ex) {
-				// log.warn("window resize failed="+ex);
+				// console.log("window resize failed="+ex);
 			}
 
 
-			// log.warn("old window elapsed="+((Date.now()-c.viewerinfo.show)/1000)+" cycle time="+c.viewerinfo.refreshIntervalSeconds);
-			// log.warn("showing window now");
+			// console.log("old window elapsed="+((Date.now()-c.viewerinfo.show)/1000)+" cycle time="+c.viewerinfo.refreshIntervalSeconds);
+			// console.log("showing window now");
 
 			// make the window visible
 			viewerinfo.show = Date.now();
 			if(scope.focus == "default"){
 				viewerinfo.window.show()
+				viewerinfo.window.focus()
 			}
 
 			viewerinfo.window.removeListener('did-finish-load',finishload)
@@ -175,12 +178,12 @@ var loading=null;
 			viewerinfo.lastUpdate = Date.now()
 			// if old window exists
 			if (viewerinfo.oldwindow != null) {
-				// log.warn("hiding old window");
+				// console.log("hiding old window");
 				viewerinfo.oldwindow.webContents.invalidate();
 				viewerinfo.oldwindow.hide();
 			}
 			else {
-				// log.warn("old window is null");
+				// console.log("old window is null");
 			}
 
 			// if old window exists
@@ -189,11 +192,11 @@ var loading=null;
 				viewerinfo.oldwindow.removeAllListeners("closed");
 				// close it
 				try {
-					// log.warn("closing old window");
+					// console.log("closing old window");
 					viewerinfo.oldwindow.close();
 					viewerinfo.oldwindow=null;
 				} catch (e) {
-					// log.warn("window close failed="+ex);
+					// console.log("window close failed="+ex);
 				}
 			}
 		}
@@ -234,7 +237,7 @@ var loading=null;
 				{viewerinfo.dy *= -1;}
 				if (new_x <= winsize[0] || new_y >= SCREEN_W - winsize[0])
 				{viewerinfo.dx *= -1;}
-				// log.warn("getting window position");
+				// console.log("getting window position");
 				// if there other windows we might overlap
 				if (service.viewerList.length > 1) {
 					// check and adjust the proposed new position to avoid overlap
@@ -242,7 +245,7 @@ var loading=null;
 					new_x = info.x;
 					new_y = info.y;
 				}
-				// log.warn("have window position");
+				// console.log("have window position");
 				let wconfig = {
 					width: viewerinfo.config.width,
 					height: viewerinfo.config.height,
@@ -270,7 +273,7 @@ var loading=null;
 					skipTaskbar: true
 					//title:viewerinfo.Viewer.Name
 				})
-				// log.warn("window created");
+				// console.log("window created");
 				// setup handler for when window is ready to show
 				//viewerinfo.window.once("ready-to-show",()=>{ if(scope.focus == "default") {viewerinfo.window.show()}})
 				viewerinfo.window.webContents.on('did-finish-load',finishload);
@@ -279,7 +282,7 @@ var loading=null;
 				viewerinfo.window.on("closed", ()=>
 				//	function ()
 					{
-						// log.warn("window removed from list url="+this.c.viewerinfo.url);
+						// console.log("window removed from list url="+this.c.viewerinfo.url);
 						remove(service.viewerList, viewerinfo);
 					}// .bind({c: new worker(oldwindow,viewerinfo)})
 				);
@@ -305,24 +308,24 @@ var loading=null;
 		}
 
 		service.cancel = function (Viewer) {
-			// log.warn("in close")
-			var list = service.viewerList
-			for (var i = 0; i < list.length; i++) {
-				// log.warn("window " + i)
+			console.log("in close for Viewer.Name")
+			var list = service.viewerList.slice()
+			for (let v of list) {
+				console.log("window " + v.Viewer.Name)
 				if (Viewer == null ||
 						(Viewer != null &&
 							(
-								(typeof list[i].Viewer != "undefined")
-								&& list[i].Viewer.Name == Viewer.Name))) {
+								(typeof v.Viewer != "undefined")
+								&& v.Viewer.Name == Viewer.Name))) {
 					// if the viewer needs updating
-					if (list[i].window != null) {
-						// log.warn("closing window=" + i)
-						list[i].window.hide();
-						list[i].window.close();
-					} else {
-						// log.warn('force remove window=' + i);
-						remove(service.viewerList, list[i])
+					if (v.window != null) {
+						console.log("closing window=" + v.Viewer.Name)
+						v.window.hide();
+						v.window.close();
 					}
+					console.log('force remove window=' + v.Viewer.Name);
+					remove(service.viewerList, v)
+					break;
 				}
 			}
 		}
@@ -342,28 +345,24 @@ var loading=null;
 						if ( (viewer.lastUpdate>0) && (now > (viewer.lastUpdate + (viewer.refreshIntervalSeconds * 1000))) && loading==null) {
 							// need to update this window
 							// get the next image
-							// log.warn("updateimg calling viewer next")
-							let x = null
+							// console.log("updateimg calling viewer next")
 							try {
-								x= await viewer.Viewer.next(viewer)//.then( (x) => {
+								let pic = await viewer.Viewer.next(viewer)
 								viewer.lastUpdate=-1;
 								console.log("viewer last update reset check");
 								// and we have a picture, watch out for race
-								if (x.pic != null) {
-									// if viewer waiting for content
-									if(x.viewer.lastUpdate==-1){
-										console.log("viewer "+x.viewer.Viewer.Name+" last update reset");
-										x.viewer.lastUpdate=1;
-									}
-									console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name)
-
-									console.log("have image="+x.pic +" for viewer="+x.viewer.Viewer.Name+" now loading")
-									// log.warn("have image to load="+pic);
+								if (pic != null) {
+									console.log("have image="+pic +" for viewer="+viewer.Viewer.Name+" now loading")
+									// console.log("have image to load="+pic);
 									// load the next image in the new position
-									moveWindow(x.pic, x.viewer);
+									moveWindow(pic, viewer);
 									// set the last updated time, will get corrected when image actualy loads
-									console.log("resetting last update  for viewer="+x.viewer.Viewer.Name)
-									x.viewer.lastUpdate = Date.now();
+									console.log("resetting last update  for viewer="+viewer.Viewer.Name)
+									viewer.lastUpdate = Date.now();
+								}
+								else{
+										console.log("viewer "+viewer.Viewer.Name+" last update reset");
+										viewer.lastUpdate=1;
 								}
 							}
 							catch(error)
@@ -379,7 +378,7 @@ var loading=null;
 				  busy = false;
 				}
 			}	else {
-				// log.warn("update img was busy already");
+				// console.log("update img was busy already");
         busy=false;
 			}
 		}; // end function
@@ -403,26 +402,14 @@ var loading=null;
 		}
 
 		service.startViewer = function (Viewer, $scope) {
-			//// log.warn("starting a new viewer="+Viewer.Name);
+			//// console.log("starting a new viewer="+Viewer.Name);
 			service.startup("/mnt/buildserver/media/Photos/test/images/**.*jpg", Viewer, $scope)
 		}
 
 		// start a viewer
 		service.startup = function (location, delay, $scope) {
 			scope = scope == null ? $scope : scope;
-			scope.$watch('focus', (newval,oldval)=>{
-			  console.log("scope focus change, old="+oldval+" new="+newval);
-				// loop thru the list of viewers
-				for (let viewer of service.viewerList.slice()) {
-					if (viewer.window != null){
-						if(newval == 'default'){
-							viewer.window.show();
-						} else if(oldval=='default'){
-							viewer.window.hide();
-						}
-					}
-				}
-			})
+
 			// if we have a url
 			if (location != null) {
 				var refreshdelay = delay
@@ -440,7 +427,8 @@ var loading=null;
           loadingImages:false,
 					index: -1,
 					refreshIntervalSeconds: refreshdelay,
-					lastUpdate: 1
+					lastUpdate: 1,
+					resolvers:{}
 				};
 				// clone viewerinfo from the local object
 				viewerinfo = JSON.parse(JSON.stringify(viewerinfo));
@@ -479,12 +467,28 @@ var loading=null;
 			if (!timeractve) {
 				registerRefreshInterval(handleLoadComplete, refresh_interval * 1000);
 				timeractve = true
+				
+				scope.$watch(
+					'focus', (newval,oldval)=>{
+						console.log("scope focus change, old="+oldval+" new="+newval);
+						// loop thru the list of viewers
+						for (let viewer of service.viewerList.slice()) {
+							if (viewer.window != null){
+								if(newval == 'default'){
+									viewer.window.show();
+								} else if(oldval=='default'){
+									viewer.window.hide();
+								}
+							}
+						}
+					}
+				)
 			}
 		};
 		function remove(arr, item) {
 			for (var i = 0; i < arr.length; i++) {
 				if (arr[i] === item) {
-					// log.warn("item removed");
+					// console.log("item removed");
 					arr[i].window = null;
 					arr.splice(i, 1);
 				}

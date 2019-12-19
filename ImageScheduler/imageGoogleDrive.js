@@ -449,7 +449,7 @@ async function setupclient(Authinfo){
 			return oauth2Client
 }
 
-module.exports.resolver = async function (file,ImageItem) {
+module.exports.resolve = async function (file,ImageItem) {
 	console.log("file resolver returning "+url_prefix+file.substring(Prefix.length)+url_suffix+" for "+file);
     var id=file.substring(Prefix.length)
 		try { 
