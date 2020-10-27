@@ -1,0 +1,66 @@
+{
+    "schema": {
+        "Scheduler": {
+            "type": "object",
+            "title": "Image Scheduler Settings",
+            "properties": {
+                "MongoDBLocation": {
+                    "type": "string",
+                    "title": "Database Server location",
+                    "default": "localhost"
+                },
+                "MongoPort": {
+                    "type": "integer",
+                    "title": "database server port",
+                    "default": 27017
+                },
+                "MongoDBName": {
+                    "type": "string",
+                    "title": "database Name",
+                    "default": "test"
+                },
+		"ConfigServerPort":  {
+                    "type": "integer",
+                    "title": "config server port",
+                    "default": 8099
+                },
+		"ViewerWidth": {
+                    "type": "integer",
+                    "title": "image viewer window width",
+                    "default": 200
+                },
+		"ViewerHeight": {
+                    "type": "integer",
+                    "title": "image viewer window height",
+                    "default": 300
+                }
+            }
+        }
+    },
+    "form":[
+      {
+        "title": "Image Scheduler Settings",
+        "type": "fieldset",
+        "expandable": true,
+        "order":0,
+        "items":[
+         "Scheduler.MongoDBLocation",
+         "Scheduler.MongoPort",
+         "Scheduler.MongoDBName",
+         "Scheduler.ConfigServerPort",
+         "Scheduler.ViewerHeight",
+         "Scheduler.ViewerWidth"
+        ]
+      }
+    ],
+    "value":{
+      "Scheduler": {
+        "MongoDBLocation": "localhost",
+        "MongoPort": 27017,
+	"MongoDBName": "test",
+        "ConfigServerPort": 8099,
+	"ViewerWidth": 200,
+	"ViewerHeight": 300
+      }
+    }
+}

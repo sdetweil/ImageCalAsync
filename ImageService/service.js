@@ -1,7 +1,7 @@
 //const electron = require('electron');
 const BrowserWindow = require("electron").remote.BrowserWindow;
-const sfn=document.currentScript.src.substring(7,document.currentScript.src.lastIndexOf(path.sep))
-const unhandled = require(path.resolve(sfn ,"../ImageScheduler","node_modules","electron-unhandled"));
+const sfn=document.currentScript.src.substring(7,document.currentScript.src.lastIndexOf(_iaspath.sep))
+const unhandled = require(_iaspath.resolve(sfn ,"../ImageScheduler","node_modules","electron-unhandled"));
 //const log = require("electron-log");
 const { webFrame } = require('electron');
 
@@ -23,11 +23,10 @@ const { webFrame } = require('electron');
 		//var mainwindow = 0;
 		var timeractve = false;
 		var scope = null;
-
-
+		var loading=null;
 
 		unhandled( { showDialog:false});
-var loading=null;
+
 		function valueInRange(value, min, max) {
 			// send back the size to adjust or 0 if not in range (same as false)
 			return ((value >= min) && (value <= max)) ? max - value : 0;
@@ -299,7 +298,7 @@ var loading=null;
 				viewerinfo.loading=true;
 				console.log("window loading url now="+image_url);
 				viewerinfo.window.hide()
-				viewerinfo.window.loadURL(image_url);
+				viewerinfo.window.loadURL(image_url, {"extraHeaders":"pragma: no-cache\n"})
 				viewerinfo.window.hide()
 			} catch (e) {
 				console.log("oops window closed on move=" + e)
@@ -467,7 +466,7 @@ var loading=null;
 			if (!timeractve) {
 				registerRefreshInterval(handleLoadComplete, refresh_interval * 1000);
 				timeractve = true
-				
+
 				scope.$watch(
 					'focus', (newval,oldval)=>{
 						console.log("scope focus change, old="+oldval+" new="+newval);
@@ -536,7 +535,7 @@ var loading=null;
 			format("size"),
 			format("liveSize")
 		)
-		Object.entries(webFrame.getResourceUsage()).map(logMemDetails)
+		Object.entries(webFrameimg.getResourceUsage()).map(logMemDetails)
 		console.log('------')
 	}
 

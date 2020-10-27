@@ -1,26 +1,26 @@
 "use strict";
 //const {ipcRenderer} = require('electron');
-const path = require("path");
+const _iaspath = require("path");
 //get the path to the current script file
 // has file:// in front of the actual path
-const fn=document.currentScript.src.substring(7,document.currentScript.src.lastIndexOf(path.sep))
+const fn=document.currentScript.src.substring(7,document.currentScript.src.lastIndexOf(_iaspath.sep))
 // use the path to the plugin node_modules
 
 
-var MongoClient = require(path.resolve(fn ,"node_modules","mongodb")).MongoClient;
+const MongoClient = require(_iaspath.resolve(fn ,"node_modules","mongodb")).MongoClient;
 //var e2c = require('electron-to-chromium');
 
 
-var webserver = require(path.resolve(fn ,"node_modules","connect"))();
-var http = require("http");
-var swaggerTools = require(path.resolve(fn ,"node_modules","swagger-tools"));
-var jsyaml = require(path.resolve(fn ,"node_modules","js-yaml"));
-var fsc = require("fs");
-var serverPort = config.Scheduler.ConfigServerPort || 8099;
+const webserver = require(_iaspath.resolve(fn ,"node_modules","connect"))();
+const http = require("http");
+const swaggerTools = require(_iaspath.resolve(fn ,"node_modules","swagger-tools"));
+const jsyaml = require(_iaspath.resolve(fn ,"node_modules","js-yaml"));
+const fsc = require("fs");
+const serverPort = config.Scheduler.ConfigServerPort || 8099;
 
-var common = require(path.resolve(fn , "common"))
+const common = require(_iaspath.resolve(fn , "common"))
 
-var MongoWatch = require(path.resolve(fn ,"node_modules","mongo-watch"))
+const MongoWatch = require(_iaspath.resolve(fn ,"node_modules","mongo-watch"))
 const OperationDelete="d";
 
 var cr = null;
@@ -33,16 +33,16 @@ dbData.valid=false;
 
 var modules={"file":null,"DropBox":null,"GoogleDrive":null,"OneDrive":null};
 
-var FilePrefix="foo://"
-var DropBoxPrefix = "dropbox://"
-var DrivePrefix="gdrive://"
-
+const FilePrefix="foo://"
+const DropBoxPrefix = "dropbox://"
+const DrivePrefix="gdrive://"
+const prefixMarker="://"
 var inprogress=false;
 
-console.log("path="+path.resolve("."))
+console.log("path="+_iaspath.resolve("."))
 
-var dgram = require("dgram");
-var glob = require(path.resolve(fn ,"node_modules","glob"))
+const dgram = require("dgram");
+const glob = require(_iaspath.resolve(fn ,"node_modules","glob"))
 
 var watcher;
 var pebusy = false;
@@ -54,11 +54,11 @@ let waiting = false;
 // swaggerRouter configuration
 var options = {
 	swaggerUi: "/swagger.json",
-	controllers: path.resolve(fn , "config","controllers"),
+	controllers: _iaspath.resolve(fn , "config","controllers"),
 	useStubs: false //  process.env.NODE_ENV === 'development' ? true: false
 };
 // The Swagger document (require it, build it programmatically, fetch it from a URL, ...)
-var spec = fsc.readFileSync(path.resolve(fn , "config","api")+ "/swagger.yaml", "utf8");
+var spec = fsc.readFileSync(_iaspath.resolve(fn , "config","api")+ "/swagger.yaml", "utf8");
 var swaggerDoc = jsyaml.safeLoad(spec);
 
 // Initialize the Swagger middleware
@@ -314,10 +314,6 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 		return results;
 	}
 
-	function worker(parm)
-	{
-		this.viewerinfo=parm;
-	}
   const getShuffledArr = arr => {
     const newArr = arr.slice()
     for (let i = newArr.length - 1; i > 0; i--) {
@@ -328,91 +324,79 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
   };
 	async function updatefilelist(viewerinfo) {
 
-      let items=viewerinfo.Viewer.items.slice();
-      // loop thru all the file items
-      viewerinfo.promises=[]
-      items.forEach( (ImageItem) => {
-          // if the handlers haven't been loaded yet
-					let prefix=null
-          if(modules[ImageItem.Source.Type.Type]==null){
-            // load them
-            let mname=fn+ "/image"+ImageItem.Source.Type.Type+".js";
-            modules[ImageItem.Source.Type.Type]=require(mname);
-						prefix=modules[ImageItem.Source.Type.Type].getPrefix()
-          }
-					else{
-						prefix=modules[ImageItem.Source.Type.Type].getPrefix()
-					}
-					viewerinfo.resolvers[prefix]={module:modules[ImageItem.Source.Type.Type],ImageItem:ImageItem}
-          // if the handler for this source type has been loaded
-          if(modules[ImageItem.Source.Type.Type]!=null){
-              // call it to get the file list
-             viewerinfo.promises.push(
-								viewerinfo.resolvers[prefix].module.listImageFiles(ImageItem,viewerinfo)
-						 )
-          }
-      });
-			if(viewerinfo.promises.length>0){
-				try{
-					await Promise.all(viewerinfo.promises)
-					return(viewerinfo);
+		let items=viewerinfo.Viewer.items.slice();
+		// loop thru all the file items
+		viewerinfo.promises=[]
+		items.forEach( (ImageItem) => {
+				// if the handlers haven't been loaded yet
+				let prefix=null
+				if(modules[ImageItem.Source.Type.Type]==null){
+					// load them
+					let mname=fn+ "/image"+ImageItem.Source.Type.Type+".js";
+					modules[ImageItem.Source.Type.Type]=require(mname);
+					prefix=modules[ImageItem.Source.Type.Type].getPrefix()
 				}
-				catch(error){
-					throw("promise all error="+error.message); // some coding error in handling happened
+				else{
+					prefix=modules[ImageItem.Source.Type.Type].getPrefix()
 				}
+				viewerinfo.resolvers[prefix]={module:modules[ImageItem.Source.Type.Type],ImageItem:ImageItem}
+				// if the handler for this source type has been loaded
+				if(modules[ImageItem.Source.Type.Type]!=null){
+						// call it to get the file list, save the returned Promise
+					 viewerinfo.promises.push(
+							viewerinfo.resolvers[prefix].module.listImageFiles(ImageItem,viewerinfo)
+					 )
+				}
+		});
+		// if there are any promises saved
+		if(viewerinfo.promises.length>0){
+			try{
+				// wait on all of them to finish, so we have the whole list of files
+				await Promise.all(viewerinfo.promises)
 			}
-			else
-				return(viewerinfo);
-
-      //console.log("done in updatefilelist for viewer=" + viewerinfo.Viewer.Name);
-    //});
-    //return p;
+			catch(error){
+				throw("promise all error="+error.message); // some coding error in handling happened
+			}
+		}
+	  return(viewerinfo);
 	}
   async function resolveFile(viewerinfo, file){
+		let selectedpic=null
 		//console.log("=====>waiting="+waiting)
 		if(waiting ==false){
 			//console.log("Next has file="+file);
-			if(file.includes("://"))
+			if(file.includes(prefixMarker))
 			{
-				if(!file.startsWith("http") && !file.startsWith("file"))
+				let prefix= file.substring(0,file.indexOf(prefixMarker)+prefixMarker.length)
+				// if we need to resolve the file ane there is a resolver
+				if(!file.startsWith("http") && !file.startsWith("file") && viewerinfo.resolvers[prefix]!=null)
 				{
-					let f= file.substring(0,file.indexOf("//")+2)
-					console.log("Next resolving image name="+file+ " for viewer="+viewerinfo.Viewer.Name+" with prefix="+f);
-					if(viewerinfo.resolvers[f]!=null)
-					{
-						if(waiting == false){
-							//console.log("Next, needs to be resolved, file="+file)
-							waiting=true;
-							try {
-								let resolvedFile = await viewerinfo.resolvers[f].module.resolve(file,viewerinfo.resolvers[f].ImageItem)
-								// save the resolved filename
-								viewerinfo.images.found[viewerinfo.index]=resolvedFile;
-								//console.log("resolver for " + viewerinfo.Viewer.Name +" returned "+ resolvedFile);
-								waiting=false;
-								viewerinfo.index++;
-								return(resolvedFile)
-							}
-							catch(error){
-								console.log("resolver error, file="+file+" error="+error);
-								waiting=false;
-								return(null)
-							}
+					console.log("Next resolving image name="+file+ " for viewer="+viewerinfo.Viewer.Name+" with prefix="+prefix);
+					// like test and set in one clause
+					if((waiting == false) & (waiting=true)){
+						//console.log("Next, needs to be resolved, file="+file)
+						// indicate we are loading images now
+						viewerinfo.loadingImages = true;
+						try {
+							selectedpic = await viewerinfo.resolvers[prefix].module.resolve(file,viewerinfo.resolvers[prefix].ImageItem)
+							// save the resolved filename
+							viewerinfo.images.found[viewerinfo.index]=selectedpic;
+							//console.log("resolver for " + viewerinfo.Viewer.Name +" returned "+ resolvedFile);
+							viewerinfo.index++;
 						}
-						else {
-							 //console.log("waiting 2 viewer  ="+viewerinfo.Viewer.Name)
-							 return(null)
+						catch(error){
+							console.log("resolver error, file="+file+" error="+error);
+							// indicate we are not loading images any longer
 						}
-					}
-					else{
-						//console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning returning filename="+file);
-						viewerinfo.index++;
-						return(file)
+						// indicate we are not loading images any longer
+						viewerinfo.loadingImages = false;
+						waiting=false;
 					}
 				}
 				else {
 					//console.log("Next for viewer="+viewerinfo.Viewer.Name + " returning http resolved filename="+file);
 					viewerinfo.index++;
-					return(file)
+					selectedpic=file
 				}
 			}
 			else {
@@ -420,66 +404,60 @@ function ImageSchedulerService($http, $interval, CalendarService, ImageService) 
 				throw("unexpected file type");
 			}
 		}
-		else {
-			//console.log("waiting viewer ="+viewerinfo.Viewer.Name)
-			return(null)
-		}
+		return selectedpic
 	}
 // called by the image display service to get the next image url.
 // uses promises to handle the delays from local and remote file systems
 	async function Next(viewerinfo) {
-      //console.log("in next for viewer="+viewerinfo.Viewer.Name);
-      if (viewerinfo != null) {
-        // if the next pic would be beyond the end of list
-        if (viewerinfo.loadingImages==false && viewerinfo.index == -1 || (viewerinfo.images.found.length > 0 && viewerinfo.index >= viewerinfo.images.found.length)) {
-          // reset the index
-          viewerinfo.index = 0;
-          // clear the list of images
-          //console.log("clearing image list for viewer="+viewerinfo.Viewer.Name);
-          viewerinfo.images.found = []
-          // watch out for updated list of images
-          console.log("getting images for viewer="+viewerinfo.Viewer.Name);
-          viewerinfo.loadingImages = true;
-					try {
-						await updatefilelist(viewerinfo)/* .then((v)=>{ */
-						console.log("filelist finished in then for viewer="+viewerinfo.Viewer.Name)
-						// shuffle the image list
-						viewerinfo.images.found=getShuffledArr(viewerinfo.images.found)
-						// indicate we are not loading images any longer
-						viewerinfo.loadingImages = false;
-					}
-					catch(error){
-						console.log("update list error ="+error);
-						throw (error);
-					}
-        }
-        // send back the next image
-        //console.log("image count="+viewerinfo.images.found.length+" and index="+viewerinfo.index +" for viewer="+viewerinfo.Viewer.Name)
-        //console.log("loading="+viewerinfo.loading+" for viewer="+viewerinfo.Viewer.Name)
+		//console.log("in next for viewer="+viewerinfo.Viewer.Name);
+		if (viewerinfo != null) {
+			// if the next pic would be beyond the end of list, or we don't have any images yet
+			if (viewerinfo.loadingImages==false && (viewerinfo.index == -1 || viewerinfo.index >= viewerinfo.images.found.length)) {
+				// get some images
+				// reset the index
+				viewerinfo.index = 0;
+				// clear the old list of images (if any)
+				//console.log("clearing image list for viewer="+viewerinfo.Viewer.Name);
+				viewerinfo.images.found = []
+				// watch out for updated list of images
+				console.log("getting images for viewer="+viewerinfo.Viewer.Name);
+				viewerinfo.loadingImages = true;
+				try {
+					await updatefilelist(viewerinfo)/* .then((v)=>{ */
+					console.log("filelist finished in then for viewer="+viewerinfo.Viewer.Name)
+					// shuffle the image list
+					viewerinfo.images.found=getShuffledArr(viewerinfo.images.found)
+				}
+				catch(error){
+					console.log("update list error ="+error);
+					throw (error);
+				}
+				viewerinfo.loadingImages = false;
+			}
+			// send back the next image
+			//console.log("image count="+viewerinfo.images.found.length+" and index="+viewerinfo.index +" for viewer="+viewerinfo.Viewer.Name)
+			//console.log("loading="+viewerinfo.loading+" for viewer="+viewerinfo.Viewer.Name)
 
-        if (viewerinfo.loadingImages==false  && viewerinfo.images.found.length > 0 && viewerinfo.index>=0 ) {
-          // if the we have a specific image
-          if (typeof viewerinfo.images.loaded_image_info != "undefined") {
-						let pic = await resolveFile(viewerinfo,viewerinfo.images.loaded_image_info)
-						if(pic !=null)
-							delete viewerinfo.images["loaded_image_info"]
-            return pic;
-          } else {
-            // make sure to increment the index for the next file later
-						let pic = await resolveFile(viewerinfo,viewerinfo.images.found[viewerinfo.index])
-						if(pic !=null)
-							viewerinfo.index++
-						return pic;
-          }
-        }
-        else {
-          //console.log("no images available for viewer ="+viewerinfo.Viewer.Name)
-					return(null)
-        }
-      }
-      //console.log("exiting next for viewer ="+viewerinfo.Viewer.Name)
-    //})
-
+			if (viewerinfo.loadingImages==false  && viewerinfo.images.found.length > 0 && viewerinfo.index>=0 ) {
+				// if the we have a specific image
+				if (typeof viewerinfo.images.loaded_image_info != "undefined") {
+					let pic = await resolveFile(viewerinfo,viewerinfo.images.loaded_image_info)
+					if(pic !=null)
+						delete viewerinfo.images["loaded_image_info"]
+					return pic;
+				} else {
+					// make sure to increment the index for the next file later
+					let pic = await resolveFile(viewerinfo,viewerinfo.images.found[viewerinfo.index])
+					if(pic !=null)
+						viewerinfo.index++
+					return pic;
+				}
+			}
+			else {
+				//console.log("no images available for viewer ="+viewerinfo.Viewer.Name)
+				return(null)
+			}
+		}
 	}
 
 	function viewerRunning(viewerList, Name) {
